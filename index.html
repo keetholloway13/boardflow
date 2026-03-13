@@ -230,6 +230,40 @@ body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text
 .c0{background:#e8ff47}.c1{background:#47b8ff}.c2{background:#ff5f5f}.c3{background:#b47fff}
 .c4{background:#ff9f47}.c5{background:#3dffaa}.c6{background:#ff47b4}.c7{background:#ffe047}
 .hide { display: none !important; }
+
+/* PLAN BADGE */
+.plan-badge { font-size: 9px; font-family: 'DM Mono', monospace; font-weight: 700; padding: 2px 7px; border-radius: 8px; letter-spacing: 0.8px; }
+.plan-free     { background: var(--card3); color: var(--text3); border: 1px solid var(--border); }
+.plan-pro      { background: rgba(71,184,255,0.15); color: var(--blue); border: 1px solid rgba(71,184,255,0.3); }
+.plan-business { background: rgba(180,127,255,0.15); color: var(--purple); border: 1px solid rgba(180,127,255,0.3); }
+
+/* ROLE BADGE */
+.role-badge { font-size: 9px; font-family: 'DM Mono', monospace; padding: 1px 6px; border-radius: 6px; font-weight: 600; vertical-align: middle; margin-left: 4px; }
+.admin-badge { background: rgba(232,255,71,0.12); color: var(--accent); border: 1px solid rgba(232,255,71,0.25); }
+
+/* TRIAL BANNER */
+.trial-banner { background: rgba(255,159,71,0.1); border-bottom: 1px solid rgba(255,159,71,0.25); padding: 9px 18px; font-size: 12px; font-family: 'DM Mono', monospace; color: var(--orange); text-align: center; cursor: pointer; transition: background 0.15s; }
+.trial-banner:hover { background: rgba(255,159,71,0.18); }
+
+/* PAYWALL SCREEN */
+#screen-paywall { align-items: center; justify-content: center; padding: 24px; background: radial-gradient(ellipse 70% 50% at 50% -10%, #1c1a40 0%, var(--bg) 65%); }
+.paywall-box { width: 100%; max-width: 480px; background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 40px 32px; text-align: center; }
+.paywall-icon { font-size: 48px; margin-bottom: 16px; }
+.paywall-title { font-size: 24px; font-weight: 800; margin-bottom: 8px; }
+.paywall-sub { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text2); margin-bottom: 32px; line-height: 1.7; }
+
+/* UPGRADE MODAL / PRICING CARDS */
+.pricing-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+@media (max-width: 480px) { .pricing-grid { grid-template-columns: 1fr; } }
+.price-card { background: var(--card2); border: 1.5px solid var(--border); border-radius: 14px; padding: 18px 16px; text-align: left; cursor: pointer; transition: all 0.18s; touch-action: manipulation; }
+.price-card:active { transform: scale(0.98); }
+.price-card.highlighted { border-color: var(--accent); background: rgba(232,255,71,0.04); }
+.price-card.biz { border-color: var(--purple); background: rgba(180,127,255,0.04); }
+.price-plan { font-size: 13px; font-weight: 800; margin-bottom: 4px; }
+.price-amount { font-size: 26px; font-weight: 800; margin-bottom: 2px; }
+.price-amount span { font-size: 13px; font-weight: 500; color: var(--text2); }
+.price-features { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text2); line-height: 1.9; margin-top: 10px; }
+.price-features b { color: var(--text); }
 @media (max-width: 480px) { .auth-box{padding:28px 20px;} .content{padding:14px;} .topbar{padding:0 14px;} .co-badge{display:none;} }
 </style>
 </head>
@@ -264,6 +298,7 @@ body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text
     <div class="topbar-left">
       <div class="topbar-logo">Board<span>Flow</span></div>
       <div class="co-badge" id="nav-co"></div>
+      <span class="plan-badge hide" id="plan-badge" style="cursor:pointer;" title="View plans">FREE</span>
     </div>
     <div class="topbar-right">
       <div class="pill"><div class="av" id="nav-av">?</div><span class="pill-name" id="nav-name"></span><span class="admin-chip hide" id="nav-admin">ADMIN</span></div>
@@ -278,6 +313,7 @@ body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text
     <button class="tab-btn" data-tab="history">📅 History</button>
     <button class="tab-btn hide admin-tab" data-tab="team">👥 Team</button>
   </div>
+  <div class="trial-banner hide" id="trial-banner"></div>
   <div class="content">
 
     <!-- BOARD -->
@@ -417,12 +453,52 @@ body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text
   </div>
 </div>
 
+<!-- PAYWALL SCREEN -->
+<div id="screen-paywall" class="screen">
+  <div class="paywall-box">
+    <div class="paywall-icon">🔒</div>
+    <div class="paywall-title">Trial Ended</div>
+    <div class="paywall-sub" id="paywall-msg">Your 14-day trial has ended.<br>Choose a plan to keep your team on track.</div>
+    <div class="pricing-grid" id="paywall-pricing"></div>
+    <button class="big-btn big-btn-ghost" id="btn-paywall-logout" style="margin-top:8px;">Sign out</button>
+  </div>
+</div>
+
+<!-- UPGRADE MODAL -->
+<div class="overlay" id="modal-upgrade">
+  <div class="modal">
+    <div class="modal-drag"></div>
+    <div class="modal-title">Upgrade Plan</div>
+    <p id="upgrade-reason" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text2);margin-bottom:18px;line-height:1.6;"></p>
+    <div class="pricing-grid" id="upgrade-pricing"></div>
+    <div style="margin-top:8px;" id="manage-sub-row" class="hide">
+      <button class="big-btn big-btn-ghost" id="btn-manage-sub">Manage Subscription →</button>
+    </div>
+    <div class="modal-row">
+      <button class="big-btn big-btn-ghost" id="btn-cancel-upgrade">Maybe Later</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"><div class="toast-dot"></div><span id="toast-msg"></span></div>
 
 <script>
 // ═══════════════════════════════════
 const SUPABASE_URL = 'https://iifrdjrnmsodqpmnaqby.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_5KtxU1RruupmthUWz25xpA_NMqvAi7-';
+
+// ── STRIPE CONFIG — fill these in ──────────────────
+const STRIPE_PUB_KEY        = 'pk_live_51TAGZiKfQXZsU4qhAOyVhCXcsLCSvjG4uxCGKhqP1kjiTnHzs0baaOIVKArmvJWkluuVtbd7x7r6aPBtkABZI3yi00VNo4AzDd';
+const STRIPE_PRO_PRICE_ID   = 'price_1TALIgKfQXZsU4qhOiwepUix';
+const STRIPE_BIZ_PRICE_ID   = 'price_1TALIvKfQXZsU4qhOc4lz5wO';
+// ───────────────────────────────────────────────────
+
+// Plan limits
+const PLAN_LIMITS = {
+  free:     { employees: 3,        admins: 1,  historyDays: 7,  csvExport: false },
+  pro:      { employees: Infinity, admins: 3,  historyDays: 30, csvExport: true  },
+  business: { employees: Infinity, admins: Infinity, historyDays: 30, csvExport: true },
+};
 // ═══════════════════════════════════
 
 const COLORS    = ['c0','c1','c2','c3','c4','c5','c6','c7'];
@@ -435,6 +511,14 @@ let employees     = [];
 let tasks         = {};
 let unassigned    = [];
 let loginRole     = 'admin';
+let companyPlan   = 'free';
+let companyMeta   = {};
+
+function planLimits()  { return PLAN_LIMITS[companyPlan] || PLAN_LIMITS.free; }
+function isTrialing()  { return companyMeta.subscription_status === 'trialing' && companyMeta.trial_ends_at && new Date(companyMeta.trial_ends_at) > new Date(); }
+function trialExpired(){ return companyMeta.subscription_status === 'trialing' && companyMeta.trial_ends_at && new Date(companyMeta.trial_ends_at) <= new Date(); }
+function trialDaysLeft(){ return Math.max(0, Math.ceil((new Date(companyMeta.trial_ends_at) - new Date()) / 86400000)); }
+function isPaid()      { return companyMeta.subscription_status === 'active'; }
 let addTaskEmpId  = null;
 let assigningId   = null;
 let dragTaskId    = null;
@@ -461,6 +545,24 @@ function toast(msg, color) {
 
 // ── DB ──────────────────────────────────────────────
 async function dbGetCompany(name)          { const {data}=await sb.from('companies').select('*').ilike('name',name).maybeSingle(); return data; }
+async function dbCreateCheckoutSession(companyId, priceId) {
+  // Calls a Supabase edge function that creates a Stripe checkout session
+  const { data, error } = await sb.functions.invoke('create-checkout', {
+    body: { company_id: companyId, price_id: priceId, return_url: window.location.href }
+  });
+  if (error) throw new Error(error.message);
+  return data.url;
+}
+async function dbCreatePortalSession(companyId) {
+  const { data, error } = await sb.functions.invoke('create-portal', {
+    body: { company_id: companyId, return_url: window.location.href }
+  });
+  if (error) throw new Error(error.message);
+  return data.url;
+}
+async function dbToggleAdminRole(empId, isAdmin) {
+  await sb.from('employees').update({ is_admin }).eq('id', empId);
+}
 async function dbCreateCompany(name, pin)  { const {data}=await sb.from('companies').insert({name,pin}).select().single(); return data; }
 async function dbUpdatePin(id, pin)        { await sb.from('companies').update({pin}).eq('id',id); }
 async function dbGetEmployees(cid)         { const {data}=await sb.from('employees').select('*').eq('company_id',cid).order('created_at'); return data||[]; }
@@ -534,7 +636,8 @@ async function doLogin() {
       const emp  = emps.find(e=>e.id===empId);
       if (!emp) { toast('Employee not found','var(--red)'); return; }
       if (empPin !== emp.pin) { toast('Wrong PIN','var(--red)'); return; }
-      session = { role:'employee', companyName:co.name, companyId:co.id, userName:emp.name, userColor:colorFor(emps.indexOf(emp)), userId:emp.id };
+      const empRole = emp.is_admin ? 'admin' : 'employee';
+      session = { role:empRole, companyName:co.name, companyId:co.id, userName:emp.name, userColor:colorFor(emps.indexOf(emp)), userId:emp.id };
     }
     LS.set('bf_session', session);
     await enterApp();
@@ -544,6 +647,16 @@ async function doLogin() {
 
 // ── APP INIT ────────────────────────────────────────
 async function enterApp() {
+  // Refresh company meta (plan, trial status)
+  companyMeta = await dbGetCompany(session.companyName) || {};
+  companyPlan = companyMeta.plan || 'free';
+
+  // If trial has expired and not paid → show paywall instead
+  if (trialExpired() && !isPaid()) {
+    showPaywall();
+    return;
+  }
+
   $('screen-auth').classList.remove('active');
   $('screen-app').classList.add('active');
   $('nav-co').textContent   = session.companyName;
@@ -564,6 +677,23 @@ async function enterApp() {
     show('btn-change-emp-pin');
   }
   $('today-label').textContent = new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
+
+  // Trial banner
+  const trialBanner = $('trial-banner');
+  if (isTrialing()) {
+    const days = trialDaysLeft();
+    trialBanner.textContent = `⏳ Trial: ${days} day${days!==1?'s':''} left — upgrade to keep access`;
+    trialBanner.classList.remove('hide');
+    trialBanner.onclick = () => openUpgradeModal();
+  } else {
+    trialBanner.classList.add('hide');
+  }
+
+  // Plan badge in topbar
+  const planBadge = $('plan-badge');
+  planBadge.textContent = companyPlan.toUpperCase();
+  planBadge.className = 'plan-badge plan-'+companyPlan;
+  planBadge.classList.remove('hide');
   await loadAll();
 }
 
@@ -860,6 +990,12 @@ async function saveEmployee() {
   if (pin.length < 4) { toast('PIN must be at least 4 digits','var(--red)'); return; }
   if (pin !== pinConfirm) { toast('PINs do not match','var(--red)'); return; }
   if (employees.find(e=>e.name.toLowerCase()===name.toLowerCase())) { toast('Already exists','var(--red)'); return; }
+  // Plan limit check
+  const lim = planLimits();
+  if (employees.length >= lim.employees) {
+    openUpgradeModal(`Your ${companyPlan} plan is limited to ${lim.employees} employees. Upgrade to add more.`);
+    return;
+  }
   $('btn-save-emp').textContent='Saving…'; $('btn-save-emp').disabled=true;
   try {
     const emp=await dbAddEmployee(session.companyId, name, role, pin);
@@ -878,7 +1014,7 @@ async function removeEmployee(empId) {
 // ── HISTORY ─────────────────────────────────────────
 function renderHistory() {
   const grid=$('hist-grid');
-  const days=[]; for(let i=0;i<30;i++){const d=new Date();d.setDate(d.getDate()-i);days.push(d.toISOString().slice(0,10));}
+  const histDays=planLimits().historyDays; const days=[]; for(let i=0;i<histDays;i++){const d=new Date();d.setDate(d.getDate()-i);days.push(d.toISOString().slice(0,10));}
   const populated=days.filter(d=>tasks[d]&&Object.values(tasks[d]).some(a=>a.length>0));
   if (!populated.length) { grid.innerHTML=`<div class="empty" style="grid-column:1/-1"><div class="empty-icon">📅</div>No history yet.</div>`; return; }
   grid.innerHTML=populated.map(dateKey=>{
@@ -944,16 +1080,39 @@ async function saveEmpPin() {
 }
 
 // ── TEAM ────────────────────────────────────────────
+async function toggleAdminRole(empId) {
+  const emp = employees.find(e=>e.id===empId); if (!emp) return;
+  const lim = planLimits();
+  const currentAdmins = employees.filter(e=>e.is_admin).length;
+  if (!emp.is_admin && currentAdmins >= lim.admins) {
+    const planName = companyPlan === 'free' ? 'Free' : companyPlan === 'pro' ? 'Pro' : 'Business';
+    openUpgradeModal(`Your ${planName} plan allows up to ${lim.admins === Infinity ? 'unlimited' : lim.admins} admin${lim.admins===1?'':'s'}. Upgrade to promote more employees.`);
+    return;
+  }
+  emp.is_admin = !emp.is_admin;
+  renderTeam();
+  toast(emp.is_admin ? `${emp.name} is now an admin` : `${emp.name} is now an employee`);
+  await dbToggleAdminRole(empId, emp.is_admin);
+}
+
 function renderTeam() {
   const grid=$('team-grid');
   const isAdmin = session.role === 'admin';
   if (!employees.length){grid.innerHTML=`<div class="empty" style="grid-column:1/-1"><div class="empty-icon">👥</div>No employees yet.</div>`;return;}
+  const adminCount = employees.filter(e=>e.is_admin).length;
   grid.innerHTML=employees.map((emp,idx)=>`
     <div class="team-card">
       <div class="team-av ${colorFor(idx)}">${initials(emp.name)}</div>
-      <div class="team-info"><div class="team-name">${esc(emp.name)}</div><div class="team-role">${esc(emp.role||'Employee')}</div></div>
-      <div style="display:flex;gap:6px;flex-shrink:0;">
-        ${isAdmin ? `<div class="icon-btn" data-action="reset-emp-pin" data-emp="${emp.id}" title="Reset PIN" style="color:var(--blue);border-color:var(--blue);opacity:0.7;">
+      <div class="team-info">
+        <div class="team-name">${esc(emp.name)} ${emp.is_admin ? '<span class="role-badge admin-badge">👑 Admin</span>' : ''}</div>
+        <div class="team-role">${esc(emp.role||'Employee')}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0;align-items:center;">
+        ${isAdmin ? `
+        <div class="icon-btn ${emp.is_admin?'active-icon':''}" data-action="toggle-admin" data-emp="${emp.id}" title="${emp.is_admin?'Remove admin':'Make admin'}" style="${emp.is_admin?'color:var(--accent);border-color:var(--accent);':'color:var(--text3);'}">
+          <svg viewBox="0 0 16 16" fill="${emp.is_admin?'currentColor':'none'}" stroke="currentColor" stroke-width="1.5"><path d="M8 1l1.8 3.6L14 5.6l-3 2.9.7 4.1L8 10.5l-3.7 2.1.7-4.1-3-2.9 4.2-.6z"/></svg>
+        </div>
+        <div class="icon-btn" data-action="reset-emp-pin" data-emp="${emp.id}" title="Reset PIN" style="color:var(--blue);border-color:var(--blue);opacity:0.7;">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5 7V5a3 3 0 016 0v2"/></svg>
         </div>
         <div class="icon-btn" data-action="del-emp" data-emp="${emp.id}" title="Remove" style="color:var(--red);border-color:var(--red);opacity:0.6;">
@@ -978,6 +1137,7 @@ async function savePin() {
 
 // ── EXPORT ──────────────────────────────────────────
 function exportCSV() {
+  if (!planLimits().csvExport) { openUpgradeModal('CSV export is not available on the free plan. Upgrade to Pro or Business.'); return; }
   let csv='Date,Employee,Role,Task,Priority,Status,Notes,Created,Completed\n';
   Object.keys(tasks).sort().reverse().forEach(dk=>{
     employees.forEach(emp=>{
@@ -1012,6 +1172,8 @@ document.addEventListener('click', function(e) {
   if (a==='open-add-task') { openAddTask(emp); return; }
   if (a==='del-emp')         { removeEmployee(emp); return; }
   if (a==='reset-emp-pin')   { openChangeEmpPinModal(emp); return; }
+  if (a==='toggle-admin')    { toggleAdminRole(emp); return; }
+  if (a==='checkout')        { $('modal-upgrade').classList.remove('on'); startCheckout(el.dataset.plan); return; }
   if (a==='open-assign')   { e.stopPropagation(); openAssignModal(task); return; }
   if (a==='del-unassigned'){ e.stopPropagation(); deleteUnassigned(task); return; }
   if (a==='sort-col')      { toggleColSort(emp); return; }
@@ -1032,6 +1194,7 @@ $('f-company').addEventListener('input', async ()=>{
   $('f-pin-label').textContent=isNew?'Create Company PIN':'Company PIN';
 });
 $('btn-enter').addEventListener('click', doLogin);
+$('plan-badge').addEventListener('click', ()=>{ if(session.role==='admin') openUpgradeModal(); });
 $('btn-logout').addEventListener('click', ()=>{
   LS.set('bf_session',null); session={};
   $('screen-app').classList.remove('active'); $('screen-auth').classList.add('active');
@@ -1051,6 +1214,14 @@ $('btn-change-pin').addEventListener('click',      ()=>{ $('m-pin-current').valu
 $('btn-cancel-pin').addEventListener('click',      ()=>$('modal-pin').classList.remove('on'));
 $('btn-save-pin').addEventListener('click',        savePin);
 $('btn-detail-close').addEventListener('click',    ()=>$('modal-detail').classList.remove('on'));
+$('btn-cancel-upgrade').addEventListener('click',  ()=>$('modal-upgrade').classList.remove('on'));
+$('btn-manage-sub').addEventListener('click',      openBillingPortal);
+$('btn-paywall-logout').addEventListener('click',  ()=>{
+  LS.set('bf_session',null); session={};
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  $('screen-auth').classList.add('active');
+  $('f-company').value=''; $('f-pin').value='';
+});
 $('btn-change-emp-pin').addEventListener('click',  ()=>openChangeEmpPinModal(null));
 $('btn-cancel-emp-pin').addEventListener('click',  ()=>$('modal-emp-pin').classList.remove('on'));
 $('btn-save-emp-pin').addEventListener('click',    saveEmpPin);
@@ -1059,6 +1230,67 @@ $('btn-detail-save').addEventListener('click',     saveDetail);
 $('btn-detail-delete').addEventListener('click',   deleteDetailTask);
 
 document.querySelectorAll('.overlay').forEach(o=>{ o.addEventListener('click', e=>{ if(e.target===o) o.classList.remove('on'); }); });
+
+// ── BILLING & UPGRADE ───────────────────────────────
+
+function pricingCardsHTML(context) {
+  // context: 'paywall' | 'upgrade'
+  return `
+    <div class="price-card highlighted" data-action="checkout" data-plan="pro">
+      <div class="price-plan" style="color:var(--blue)">PRO</div>
+      <div class="price-amount">$20<span>/mo</span></div>
+      <div class="price-features">
+        <b>Unlimited</b> employees<br>
+        <b>3</b> admins<br>
+        <b>30-day</b> history<br>
+        CSV export ✓
+      </div>
+    </div>
+    <div class="price-card biz" data-action="checkout" data-plan="business">
+      <div class="price-plan" style="color:var(--purple)">BUSINESS</div>
+      <div class="price-amount">$50<span>/mo</span></div>
+      <div class="price-features">
+        <b>Unlimited</b> employees<br>
+        <b>Unlimited</b> admins<br>
+        <b>30-day</b> history<br>
+        CSV export ✓
+      </div>
+    </div>`;
+}
+
+function showPaywall() {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  $('screen-paywall').classList.add('active');
+  $('paywall-pricing').innerHTML = pricingCardsHTML('paywall');
+}
+
+function openUpgradeModal(reason) {
+  $('upgrade-reason').textContent = reason || 'Unlock more features by upgrading your plan.';
+  $('upgrade-pricing').innerHTML  = pricingCardsHTML('upgrade');
+  // Show "Manage subscription" if already paying (to switch plans)
+  $('manage-sub-row').classList.toggle('hide', !isPaid());
+  $('modal-upgrade').classList.add('on');
+}
+
+async function startCheckout(plan) {
+  const priceId = plan === 'pro' ? STRIPE_PRO_PRICE_ID : STRIPE_BIZ_PRICE_ID;
+  if (!priceId || priceId.includes('HERE')) {
+    toast('Stripe not configured yet — add your Price IDs','var(--red)'); return;
+  }
+  toast('Redirecting to checkout…');
+  try {
+    const url = await dbCreateCheckoutSession(session.companyId, priceId);
+    window.location.href = url;
+  } catch(e) { toast('Error: '+e.message,'var(--red)'); }
+}
+
+async function openBillingPortal() {
+  toast('Opening billing portal…');
+  try {
+    const url = await dbCreatePortalSession(session.companyId);
+    window.location.href = url;
+  } catch(e) { toast('Error: '+e.message,'var(--red)'); }
+}
 
 // ── MIDNIGHT AUTO-CLEAR ─────────────────────────────
 // Deletes completed tasks from any day before today from the DB.
@@ -1098,11 +1330,22 @@ function scheduleMidnightClear() {
 
 // AUTO LOGIN
 (async()=>{
+  // Handle Stripe redirect back to app
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('checkout') === 'success') {
+    toast('Payment successful! Welcome aboard 🎉');
+    // Clean URL
+    window.history.replaceState({}, '', window.location.pathname);
+  } else if (params.get('checkout') === 'cancelled') {
+    toast('Checkout cancelled — no charge made','var(--orange)');
+    window.history.replaceState({}, '', window.location.pathname);
+  }
+
   if (session?.companyId) {
     try {
       await enterApp();
-      await clearOldDoneTasks(); // clean up any old done tasks on load
-      scheduleMidnightClear();   // keep running until page closes
+      await clearOldDoneTasks();
+      scheduleMidnightClear();
     } catch(e) { LS.set('bf_session',null); }
   }
 })();
