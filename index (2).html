@@ -1,0 +1,1228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>BoardFlow</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0b0d;
+  --card: #13151a;
+  --card2: #1a1d24;
+  --card3: #21252e;
+  --border: #2a2f3a;
+  --accent: #e8ff47;
+  --accent-dim: rgba(232,255,71,0.12);
+  --blue: #47b8ff;
+  --red: #ff5f5f;
+  --green: #3dffaa;
+  --purple: #b47fff;
+  --orange: #ff9f47;
+  --text: #eef0f4;
+  --text2: #7a8494;
+  --text3: #3d4555;
+  --r: 12px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+html, body { height: 100%; overflow-x: hidden; }
+
+body {
+  font-family: 'Syne', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── SETUP BANNER ── */
+#setup-banner {
+  background: linear-gradient(90deg, #1a1200, #1a1800);
+  border-bottom: 1px solid #3d3000;
+  padding: 12px 20px;
+  font-size: 13px;
+  color: var(--accent);
+  font-family: 'DM Mono', monospace;
+  text-align: center;
+  display: none;
+}
+
+/* ── SCREENS ── */
+.screen { display: none; min-height: 100vh; }
+.screen.active { display: flex; flex-direction: column; }
+
+/* ── AUTH ── */
+#screen-auth {
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: radial-gradient(ellipse 70% 50% at 50% -10%, #1c2240 0%, var(--bg) 65%);
+}
+
+.auth-box {
+  width: 100%;
+  max-width: 400px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 36px 32px;
+}
+
+.logo { display: flex; align-items: center; gap: 10px; margin-bottom: 32px; }
+.logo-sq {
+  width: 34px; height: 34px;
+  background: var(--accent);
+  border-radius: 8px;
+  display: grid; place-items: center;
+}
+.logo-sq svg { width: 18px; height: 18px; }
+.logo-name { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
+.logo-name span { color: var(--accent); }
+
+.auth-title { font-size: 26px; font-weight: 700; margin-bottom: 6px; }
+.auth-sub { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text2); margin-bottom: 28px; }
+
+.seg {
+  display: flex;
+  background: var(--card2);
+  border-radius: 10px;
+  padding: 4px;
+  margin-bottom: 22px;
+}
+.seg-btn {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text2);
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.18s;
+  touch-action: manipulation;
+}
+.seg-btn.on { background: var(--card3); color: var(--text); box-shadow: 0 2px 6px rgba(0,0,0,0.4); }
+
+.field { margin-bottom: 14px; }
+.field label {
+  display: block;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text2);
+  margin-bottom: 7px;
+}
+.field input, .field select {
+  width: 100%;
+  padding: 13px 15px;
+  background: var(--card2);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r);
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.18s;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.field input:focus, .field select:focus { border-color: var(--accent); }
+.field select { cursor: pointer; }
+
+.big-btn {
+  width: 100%;
+  padding: 15px;
+  border: none;
+  border-radius: var(--r);
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: opacity 0.15s, transform 0.1s;
+  margin-top: 6px;
+}
+.big-btn:active { opacity: 0.85; transform: scale(0.98); }
+.big-btn-accent { background: var(--accent); color: #0a0b0d; }
+.big-btn-ghost { background: var(--card2); color: var(--text); border: 1.5px solid var(--border); }
+
+.auth-note { text-align: center; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text3); margin-top: 16px; }
+
+/* ── APP SHELL ── */
+#screen-app { min-height: 100vh; }
+
+.topbar {
+  position: sticky; top: 0; z-index: 50;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  padding: 0 18px;
+  height: 56px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.topbar-left { display: flex; align-items: center; gap: 12px; }
+.topbar-logo { font-size: 17px; font-weight: 800; letter-spacing: -0.4px; }
+.topbar-logo span { color: var(--accent); }
+.co-badge {
+  background: var(--card2);
+  border: 1px solid var(--border);
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-family: 'DM Mono', monospace;
+  color: var(--text2);
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.topbar-right { display: flex; align-items: center; gap: 8px; }
+.pill {
+  display: flex; align-items: center; gap: 7px;
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 5px 10px 5px 5px;
+}
+.av {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: 10px; font-weight: 700; color: #0a0b0d;
+}
+.pill-name { font-size: 12px; font-weight: 600; max-width: 80px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-chip {
+  font-size: 9px; font-family: 'DM Mono', monospace;
+  background: var(--accent); color: #0a0b0d;
+  padding: 2px 6px; border-radius: 8px; font-weight: 600;
+}
+.icon-btn {
+  width: 34px; height: 34px;
+  border: 1.5px solid var(--border);
+  background: var(--card2);
+  border-radius: 9px;
+  display: grid; place-items: center;
+  cursor: pointer; touch-action: manipulation;
+  color: var(--text2);
+  transition: all 0.15s;
+}
+.icon-btn:active { background: var(--card3); }
+.icon-btn svg { width: 15px; height: 15px; }
+
+/* ── TABS ── */
+.tabs {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+.tab-btn {
+  flex-shrink: 0;
+  padding: 14px 18px;
+  border: none;
+  background: transparent;
+  color: var(--text2);
+  font-family: 'Syne', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  touch-action: manipulation;
+  border-bottom: 2px solid transparent;
+  transition: all 0.18s;
+  white-space: nowrap;
+}
+.tab-btn.on { color: var(--text); border-bottom-color: var(--accent); }
+
+/* ── CONTENT ── */
+.content { padding: 18px; max-width: 1200px; margin: 0 auto; }
+
+.view { display: none; }
+.view.on { display: block; }
+
+/* ── BOARD ── */
+.board-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 18px; gap: 10px; flex-wrap: wrap;
+}
+.board-head h2 { font-size: 20px; font-weight: 700; }
+.date-tag {
+  font-family: 'DM Mono', monospace; font-size: 11px;
+  color: var(--text2); background: var(--card);
+  border: 1px solid var(--border); padding: 4px 11px; border-radius: 20px;
+}
+.sm-btn {
+  padding: 8px 16px;
+  border-radius: 9px;
+  border: none;
+  font-family: 'Syne', sans-serif;
+  font-weight: 700; font-size: 12px;
+  cursor: pointer; touch-action: manipulation;
+  transition: all 0.15s;
+}
+.sm-btn:active { opacity: 0.8; }
+.sm-btn-accent { background: var(--accent); color: #0a0b0d; }
+.sm-btn-ghost { background: var(--card); border: 1.5px solid var(--border); color: var(--text2); }
+
+.cols { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 14px; }
+
+.emp-col {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.emp-head {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 11px;
+}
+.emp-av {
+  width: 36px; height: 36px;
+  border-radius: 9px;
+  display: grid; place-items: center;
+  font-size: 13px; font-weight: 700; color: #0a0b0d;
+  flex-shrink: 0;
+}
+.emp-info { flex: 1; min-width: 0; }
+.emp-name { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.emp-role { font-size: 11px; color: var(--text2); font-family: 'DM Mono', monospace; margin-top: 1px; }
+.emp-count { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text3); flex-shrink: 0; }
+.emp-count b { color: var(--green); }
+
+.task-list { padding: 10px; min-height: 60px; }
+
+.task-row {
+  display: flex; align-items: flex-start; gap: 9px;
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 11px 12px;
+  margin-bottom: 7px;
+  transition: background 0.15s;
+}
+.task-row.done { opacity: 0.5; }
+
+.check-box {
+  width: 24px; height: 24px;
+  border: 2px solid var(--border);
+  border-radius: 6px;
+  flex-shrink: 0;
+  display: grid; place-items: center;
+  cursor: pointer; touch-action: manipulation;
+  transition: all 0.18s;
+  -webkit-tap-highlight-color: transparent;
+}
+.check-box.checked { background: var(--green); border-color: var(--green); }
+.check-box svg { display: none; width: 13px; height: 13px; }
+.check-box.checked svg { display: block; }
+
+.task-body { flex: 1; min-width: 0; }
+.task-text { font-size: 13px; font-weight: 600; line-height: 1.4; word-break: break-word; }
+.task-row.done .task-text { text-decoration: line-through; color: var(--text3); }
+.task-meta { display: flex; align-items: center; gap: 6px; margin-top: 5px; flex-wrap: wrap; }
+.p-badge {
+  font-size: 10px; font-family: 'DM Mono', monospace;
+  padding: 1px 6px; border-radius: 4px;
+}
+.p-low { background: rgba(61,255,170,0.1); color: var(--green); }
+.p-mid { background: rgba(232,255,71,0.1); color: var(--accent); }
+.p-high { background: rgba(255,95,95,0.12); color: var(--red); }
+.task-time { font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text3); }
+
+.del-btn {
+  background: none; border: none;
+  color: var(--text3); cursor: pointer;
+  touch-action: manipulation;
+  padding: 4px; border-radius: 5px;
+  display: grid; place-items: center;
+  min-width: 28px; min-height: 28px;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.del-btn:active { color: var(--red); background: rgba(255,95,95,0.1); }
+.del-btn svg { width: 13px; height: 13px; }
+
+.add-row { padding: 0 10px 10px; }
+.add-task-btn {
+  width: 100%;
+  padding: 10px;
+  background: transparent;
+  border: 1.5px dashed var(--border);
+  border-radius: 8px;
+  color: var(--text3);
+  font-family: 'Syne', sans-serif;
+  font-size: 12px; font-weight: 700;
+  cursor: pointer; touch-action: manipulation;
+  transition: all 0.18s;
+}
+.add-task-btn:active { border-color: var(--accent); color: var(--accent); }
+
+.empty-col {
+  padding: 28px 16px;
+  text-align: center;
+  font-size: 12px;
+  font-family: 'DM Mono', monospace;
+  color: var(--text3);
+}
+
+/* ── HISTORY ── */
+.hist-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; flex-wrap: wrap; gap: 10px; }
+.hist-head h2 { font-size: 20px; font-weight: 700; }
+.hist-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+
+.day-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.day-head {
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.day-date { font-size: 13px; font-weight: 700; }
+.day-stat { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text2); }
+.prog { height: 2px; background: var(--card2); }
+.prog-fill { height: 100%; background: var(--green); }
+.day-body { padding: 12px 16px; }
+.day-emp { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--card2); }
+.day-emp:last-child { border-bottom: none; }
+.day-emp-name { font-size: 12px; font-weight: 600; flex: 1; }
+.day-emp-stat { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text2); }
+.day-tasks { padding-left: 16px; }
+.day-task-item { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text3); padding: 2px 0; display: flex; align-items: center; gap: 5px; }
+.day-task-item.done { color: var(--green); }
+
+/* ── TEAM ── */
+.team-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; flex-wrap: wrap; gap: 10px; }
+.team-head h2 { font-size: 20px; font-weight: 700; }
+.team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.team-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px;
+  display: flex; align-items: center; gap: 13px;
+}
+.team-av { width: 44px; height: 44px; border-radius: 11px; display: grid; place-items: center; font-size: 15px; font-weight: 700; color: #0a0b0d; flex-shrink: 0; }
+.team-info { flex: 1; min-width: 0; }
+.team-name { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.team-role { font-size: 11px; color: var(--text2); font-family: 'DM Mono', monospace; margin-top: 2px; }
+
+/* ── MODAL ── */
+.overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.75);
+  z-index: 200;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+  backdrop-filter: blur(3px);
+}
+.overlay.on { display: flex; }
+.modal {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px 20px 0 0;
+  padding: 28px 24px 36px;
+  width: 100%;
+  max-width: 480px;
+}
+@media (min-width: 600px) {
+  .overlay { align-items: center; padding: 20px; }
+  .modal { border-radius: 20px; }
+}
+.modal-title { font-size: 18px; font-weight: 700; margin-bottom: 22px; }
+.modal-drag { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 20px; display: block; }
+@media (min-width: 600px) { .modal-drag { display: none; } }
+.modal-row { display: flex; gap: 10px; margin-top: 18px; }
+.modal-row .big-btn { margin-top: 0; }
+
+/* ── TOAST ── */
+#toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+  background: var(--card3); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px 20px;
+  font-size: 13px; font-weight: 600;
+  white-space: nowrap;
+  z-index: 999;
+  transition: transform 0.3s, opacity 0.3s;
+  opacity: 0;
+  display: flex; align-items: center; gap: 8px;
+}
+#toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+.toast-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+
+/* ── SPINNER ── */
+.spinner {
+  width: 20px; height: 20px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin: 40px auto;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── EMPTY STATE ── */
+.empty {
+  text-align: center; padding: 60px 20px;
+  color: var(--text3); font-size: 13px; line-height: 1.7;
+}
+.empty-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
+
+/* ── COLORS ── */
+.c0{background:#e8ff47}.c1{background:#47b8ff}.c2{background:#ff5f5f}
+.c3{background:#b47fff}.c4{background:#ff9f47}.c5{background:#3dffaa}
+.c6{background:#ff47b4}.c7{background:#ffe047}
+
+/* ── UTIL ── */
+.hide { display: none !important; }
+
+@media (max-width: 480px) {
+  .auth-box { padding: 28px 20px; }
+  .content { padding: 14px; }
+  .topbar { padding: 0 14px; }
+  .co-badge { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- SETUP BANNER -->
+<div id="setup-banner">⚠ Add your Supabase URL and Key at the top of the &lt;script&gt; to enable data saving</div>
+
+<!-- ── AUTH SCREEN ── -->
+<div id="screen-auth" class="screen active">
+  <div class="auth-box">
+    <div class="logo">
+      <div class="logo-sq"><svg viewBox="0 0 18 18" fill="#0a0b0d"><rect x="1" y="1" width="7" height="7" rx="1.5"/><rect x="10" y="1" width="7" height="7" rx="1.5"/><rect x="1" y="10" width="7" height="7" rx="1.5"/><rect x="10" y="10" width="7" height="7" rx="1.5"/></svg></div>
+      <div class="logo-name">Board<span>Flow</span></div>
+    </div>
+    <h1 class="auth-title">Sign In</h1>
+    <p class="auth-sub">// company task board</p>
+
+    <div class="seg">
+      <button class="seg-btn on" id="seg-admin">Admin</button>
+      <button class="seg-btn" id="seg-emp">Employee</button>
+    </div>
+
+    <div class="field">
+      <label>Company Name</label>
+      <input id="f-company" type="text" placeholder="Acme Corp" autocomplete="off" autocorrect="off" autocapitalize="words" />
+    </div>
+    <div class="field" id="f-name-wrap">
+      <label>Your Name</label>
+      <input id="f-name" type="text" placeholder="Jane Smith" autocomplete="off" autocorrect="off" autocapitalize="words" />
+    </div>
+    <div class="field" id="f-pin-wrap">
+      <label>Admin PIN (default: 1234)</label>
+      <input id="f-pin" type="number" inputmode="numeric" pattern="[0-9]*" placeholder="1234" />
+    </div>
+    <div class="field hide" id="f-emp-wrap">
+      <label>Select Your Name</label>
+      <select id="f-emp-sel">
+        <option value="">— tap to select —</option>
+      </select>
+    </div>
+
+    <button class="big-btn big-btn-accent" id="btn-enter">Enter Board →</button>
+    <p class="auth-note">// PIN: 1234 &nbsp;·&nbsp; data saved to Supabase</p>
+  </div>
+</div>
+
+<!-- ── APP SCREEN ── -->
+<div id="screen-app" class="screen">
+
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-logo">Board<span>Flow</span></div>
+      <div class="co-badge" id="nav-co"></div>
+    </div>
+    <div class="topbar-right">
+      <div class="pill">
+        <div class="av" id="nav-av">?</div>
+        <span class="pill-name" id="nav-name"></span>
+        <span class="admin-chip hide" id="nav-admin">ADMIN</span>
+      </div>
+      <div class="icon-btn" id="btn-logout" title="Sign out">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3H3a1 1 0 00-1 1v8a1 1 0 001 1h3M10 5l3 3-3 3M13 8H6"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button class="tab-btn on" data-tab="board">📋 Board</button>
+    <button class="tab-btn" data-tab="history">📅 History</button>
+    <button class="tab-btn hide admin-tab" data-tab="team">👥 Team</button>
+  </div>
+
+  <div class="content">
+
+    <!-- BOARD -->
+    <div class="view on" id="view-board">
+      <div class="board-head">
+        <h2>Today's Board</h2>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <div class="date-tag" id="today-label"></div>
+          <button class="sm-btn sm-btn-accent hide admin-el" id="btn-open-add-emp">+ Employee</button>
+        </div>
+      </div>
+      <div class="cols" id="board-cols">
+        <div class="spinner"></div>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="view" id="view-history">
+      <div class="hist-head">
+        <h2>30-Day History</h2>
+        <button class="sm-btn sm-btn-ghost hide admin-el" id="btn-export">⬇ Export CSV</button>
+      </div>
+      <div class="hist-grid" id="hist-grid"><div class="spinner"></div></div>
+    </div>
+
+    <!-- TEAM -->
+    <div class="view" id="view-team">
+      <div class="team-head">
+        <h2>Team</h2>
+        <button class="sm-btn sm-btn-accent" id="btn-open-add-emp2">+ Add Employee</button>
+      </div>
+      <div class="team-grid" id="team-grid"><div class="spinner"></div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── MODAL: ADD TASK ── -->
+<div class="overlay" id="modal-task">
+  <div class="modal">
+    <div class="modal-drag"></div>
+    <div class="modal-title">Add Task</div>
+    <div class="field">
+      <label>Task Description</label>
+      <input id="m-task-text" type="text" placeholder="e.g. Restock shelves in aisle 3" autocorrect="off" />
+    </div>
+    <div class="field">
+      <label>Priority</label>
+      <select id="m-task-pri">
+        <option value="low">Low</option>
+        <option value="mid" selected>Medium</option>
+        <option value="high">High</option>
+      </select>
+    </div>
+    <div class="modal-row">
+      <button class="big-btn big-btn-ghost" id="btn-cancel-task">Cancel</button>
+      <button class="big-btn big-btn-accent" id="btn-save-task">Add Task →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL: ADD EMPLOYEE ── -->
+<div class="overlay" id="modal-emp">
+  <div class="modal">
+    <div class="modal-drag"></div>
+    <div class="modal-title">Add Employee</div>
+    <div class="field">
+      <label>Full Name</label>
+      <input id="m-emp-name" type="text" placeholder="Jane Smith" autocapitalize="words" autocorrect="off" />
+    </div>
+    <div class="field">
+      <label>Job Title</label>
+      <input id="m-emp-role" type="text" placeholder="Sales Associate" autocapitalize="words" autocorrect="off" />
+    </div>
+    <div class="modal-row">
+      <button class="big-btn big-btn-ghost" id="btn-cancel-emp">Cancel</button>
+      <button class="big-btn big-btn-accent" id="btn-save-emp">Add →</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"><div class="toast-dot"></div><span id="toast-msg"></span></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  CONFIGURATION — paste your Supabase details here
+// ═══════════════════════════════════════════════════════
+const SUPABASE_URL = 'https://iifrdjrnmsodqpmnaqby.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_5KtxU1RruupmthUWz25xpA_NMqvAi7-';
+const ADMIN_PIN    = '1234';
+// ═══════════════════════════════════════════════════════
+
+const COLORS = ['c0','c1','c2','c3','c4','c5','c6','c7'];
+const usingSupabase = SUPABASE_URL !== 'YOUR_SUPABASE_URL';
+
+let sb = null;
+if (usingSupabase) {
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+} else {
+  document.getElementById('setup-banner').style.display = 'block';
+}
+
+// ── LOCAL FALLBACK STORAGE ──────────────────────────────
+const LS = {
+  get: k => { try { return JSON.parse(localStorage.getItem(k)); } catch(e) { return null; } },
+  set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {} },
+};
+
+// ── SESSION ─────────────────────────────────────────────
+let session = LS.get('bf_session') || {};
+// session: { role, companyName, companyId, userName, userColor, userId }
+
+// ── STATE ───────────────────────────────────────────────
+let employees = [];
+let tasks = {};      // { dateKey: { empId: [task...] } }
+let loginRole = 'admin';
+let addTaskEmpId = null;
+
+// ── HELPERS ─────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const show = id => $(id).classList.remove('hide');
+const hide = id => $(id).classList.add('hide');
+
+function initials(name) {
+  return (name || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+}
+function todayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+function colorFor(idx) {
+  return COLORS[idx % COLORS.length];
+}
+
+let toastTimer;
+function toast(msg, color) {
+  $('toast-msg').textContent = msg;
+  $('toast').querySelector('.toast-dot').style.background = color || 'var(--green)';
+  $('toast').classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => $('toast').classList.remove('show'), 2600);
+}
+
+// ── SUPABASE / LOCAL DATA LAYER ──────────────────────────
+
+async function dbGetCompany(name) {
+  if (!usingSupabase) {
+    const all = LS.get('bf_companies') || [];
+    return all.find(c => c.name.toLowerCase() === name.toLowerCase()) || null;
+  }
+  const { data } = await sb.from('companies').select('*').ilike('name', name).single();
+  return data;
+}
+
+async function dbCreateCompany(name) {
+  if (!usingSupabase) {
+    const all = LS.get('bf_companies') || [];
+    const c = { id: uid(), name };
+    all.push(c);
+    LS.set('bf_companies', all);
+    return c;
+  }
+  const { data } = await sb.from('companies').insert({ name }).select().single();
+  return data;
+}
+
+async function dbGetEmployees(companyId) {
+  if (!usingSupabase) {
+    const all = LS.get('bf_employees') || [];
+    return all.filter(e => e.company_id === companyId);
+  }
+  const { data } = await sb.from('employees').select('*').eq('company_id', companyId).order('created_at');
+  return data || [];
+}
+
+async function dbAddEmployee(companyId, name, role) {
+  if (!usingSupabase) {
+    const all = LS.get('bf_employees') || [];
+    const e = { id: uid(), company_id: companyId, name, role, created_at: new Date().toISOString() };
+    all.push(e);
+    LS.set('bf_employees', all);
+    return e;
+  }
+  const { data } = await sb.from('employees').insert({ company_id: companyId, name, role }).select().single();
+  return data;
+}
+
+async function dbRemoveEmployee(empId) {
+  if (!usingSupabase) {
+    const all = LS.get('bf_employees') || [];
+    LS.set('bf_employees', all.filter(e => e.id !== empId));
+    return;
+  }
+  await sb.from('employees').delete().eq('id', empId);
+}
+
+async function dbGetTasks(companyId, since) {
+  if (!usingSupabase) {
+    const all = LS.get('bf_tasks') || [];
+    return all.filter(t => t.company_id === companyId && t.date_key >= since);
+  }
+  const { data } = await sb.from('tasks').select('*').eq('company_id', companyId).gte('date_key', since).order('created_at');
+  return data || [];
+}
+
+async function dbAddTask(companyId, empId, dateKey, title, priority) {
+  if (!usingSupabase) {
+    const all = LS.get('bf_tasks') || [];
+    const t = { id: uid(), company_id: companyId, employee_id: empId, date_key: dateKey, title, priority, done: false, created_at: new Date().toISOString(), completed_at: null };
+    all.push(t);
+    LS.set('bf_tasks', all);
+    return t;
+  }
+  const { data } = await sb.from('tasks').insert({ company_id: companyId, employee_id: empId, date_key: dateKey, title, priority, done: false }).select().single();
+  return data;
+}
+
+async function dbToggleTask(taskId, done) {
+  if (!usingSupabase) {
+    const all = LS.get('bf_tasks') || [];
+    const t = all.find(t => t.id === taskId);
+    if (t) { t.done = done; t.completed_at = done ? new Date().toISOString() : null; }
+    LS.set('bf_tasks', all);
+    return;
+  }
+  await sb.from('tasks').update({ done, completed_at: done ? new Date().toISOString() : null }).eq('id', taskId);
+}
+
+async function dbDeleteTask(taskId) {
+  if (!usingSupabase) {
+    const all = LS.get('bf_tasks') || [];
+    LS.set('bf_tasks', all.filter(t => t.id !== taskId));
+    return;
+  }
+  await sb.from('tasks').delete().eq('id', taskId);
+}
+
+// ── AUTH ─────────────────────────────────────────────────
+
+function switchLoginRole(role) {
+  loginRole = role;
+  $('seg-admin').classList.toggle('on', role === 'admin');
+  $('seg-emp').classList.toggle('on', role === 'employee');
+  $('f-name-wrap').classList.toggle('hide', role === 'employee');
+  $('f-pin-wrap').classList.toggle('hide', role === 'employee');
+  $('f-emp-wrap').classList.toggle('hide', role === 'admin');
+  if (role === 'employee') loadEmpSelect();
+}
+
+async function loadEmpSelect() {
+  const co = $('f-company').value.trim();
+  const sel = $('f-emp-sel');
+  sel.innerHTML = '<option value="">— tap to select —</option>';
+  if (!co) return;
+  const company = await dbGetCompany(co);
+  if (!company) return;
+  const emps = await dbGetEmployees(company.id);
+  emps.forEach(e => {
+    const o = document.createElement('option');
+    o.value = e.id;
+    o.textContent = e.name;
+    sel.appendChild(o);
+  });
+}
+
+async function doLogin() {
+  const company = $('f-company').value.trim();
+  if (!company) { toast('Enter company name', 'var(--red)'); return; }
+
+  $('btn-enter').textContent = 'Loading…';
+  $('btn-enter').disabled = true;
+
+  try {
+    if (loginRole === 'admin') {
+      const name = $('f-name').value.trim();
+      const pin  = $('f-pin').value.trim();
+      if (!name) { toast('Enter your name', 'var(--red)'); return; }
+      if (pin !== ADMIN_PIN) { toast('Wrong PIN', 'var(--red)'); return; }
+
+      let co = await dbGetCompany(company);
+      if (!co) co = await dbCreateCompany(company);
+
+      session = { role: 'admin', companyName: co.name, companyId: co.id, userName: name, userColor: COLORS[0] };
+
+    } else {
+      const empId = $('f-emp-sel').value;
+      if (!empId) { toast('Select your name', 'var(--red)'); return; }
+
+      const co = await dbGetCompany(company);
+      if (!co) { toast('Company not found', 'var(--red)'); return; }
+
+      const emps = await dbGetEmployees(co.id);
+      const emp = emps.find(e => e.id === empId);
+      if (!emp) { toast('Employee not found', 'var(--red)'); return; }
+      const idx = emps.indexOf(emp);
+
+      session = { role: 'employee', companyName: co.name, companyId: co.id, userName: emp.name, userColor: colorFor(idx), userId: emp.id };
+    }
+
+    LS.set('bf_session', session);
+    await enterApp();
+  } catch(err) {
+    toast('Error: ' + err.message, 'var(--red)');
+    console.error(err);
+  } finally {
+    $('btn-enter').textContent = 'Enter Board →';
+    $('btn-enter').disabled = false;
+  }
+}
+
+// ── APP INIT ──────────────────────────────────────────────
+
+async function enterApp() {
+  $('screen-auth').classList.remove('active');
+  $('screen-app').classList.add('active');
+
+  $('nav-co').textContent = session.companyName;
+  $('nav-name').textContent = session.userName;
+  $('nav-av').textContent = initials(session.userName);
+  $('nav-av').className = 'av ' + (session.userColor || COLORS[0]);
+
+  if (session.role === 'admin') {
+    show('nav-admin');
+    document.querySelectorAll('.admin-el').forEach(e => e.classList.remove('hide'));
+    document.querySelectorAll('.admin-tab').forEach(e => e.classList.remove('hide'));
+  }
+
+  $('today-label').textContent = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+
+  await loadAll();
+}
+
+async function loadAll() {
+  employees = await dbGetEmployees(session.companyId);
+
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 30);
+  const cutoffKey = cutoff.toISOString().slice(0, 10);
+  const rawTasks = await dbGetTasks(session.companyId, cutoffKey);
+
+  // Index tasks: tasks[dateKey][empId] = [...]
+  tasks = {};
+  rawTasks.forEach(t => {
+    if (!tasks[t.date_key]) tasks[t.date_key] = {};
+    if (!tasks[t.date_key][t.employee_id]) tasks[t.date_key][t.employee_id] = [];
+    tasks[t.date_key][t.employee_id].push(t);
+  });
+
+  renderBoard();
+  renderHistory();
+  renderTeam();
+}
+
+// ── BOARD ─────────────────────────────────────────────────
+
+function renderBoard() {
+  const isAdmin = session.role === 'admin';
+  const today = todayKey();
+  const todayTasks = tasks[today] || {};
+  const grid = $('board-cols');
+
+  if (employees.length === 0) {
+    grid.innerHTML = `<div class="empty"><div class="empty-icon">📋</div>${isAdmin ? 'No employees yet.<br>Add one with <b>+ Employee</b> above.' : 'No employees set up yet.'}</div>`;
+    return;
+  }
+
+  grid.innerHTML = employees.map((emp, idx) => {
+    const color = colorFor(idx);
+    const empTasks = todayTasks[emp.id] || [];
+    const done = empTasks.filter(t => t.done).length;
+    const total = empTasks.length;
+
+    const taskHTML = empTasks.length === 0
+      ? `<div class="empty-col">no tasks yet</div>`
+      : empTasks.map(t => {
+          const pc = t.priority === 'high' ? 'p-high' : t.priority === 'low' ? 'p-low' : 'p-mid';
+          const time = new Date(t.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+          return `<div class="task-row ${t.done ? 'done' : ''}" data-task="${t.id}">
+            <div class="check-box ${t.done ? 'checked' : ''}" data-action="toggle" data-task="${t.id}" data-emp="${emp.id}">
+              <svg viewBox="0 0 13 13" fill="none"><polyline points="1.5,6.5 5,10 11.5,3" stroke="#0a0b0d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="task-body">
+              <div class="task-text">${t.title}</div>
+              <div class="task-meta">
+                <span class="p-badge ${pc}">${t.priority}</span>
+                <span class="task-time">${time}</span>
+              </div>
+            </div>
+            ${isAdmin ? `<button class="del-btn" data-action="del-task" data-task="${t.id}" data-emp="${emp.id}"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="2" y1="2" x2="12" y2="12"/><line x1="12" y1="2" x2="2" y2="12"/></svg></button>` : ''}
+          </div>`;
+        }).join('');
+
+    return `<div class="emp-col">
+      <div class="emp-head">
+        <div class="emp-av ${color}">${initials(emp.name)}</div>
+        <div class="emp-info">
+          <div class="emp-name">${emp.name}</div>
+          <div class="emp-role">${emp.role || 'Employee'}</div>
+        </div>
+        <div class="emp-count">${total > 0 ? `<b>${done}</b>/${total}` : '—'}</div>
+      </div>
+      <div class="task-list">${taskHTML}</div>
+      ${isAdmin ? `<div class="add-row"><button class="add-task-btn" data-action="open-add-task" data-emp="${emp.id}">+ Add Task</button></div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+// ── HISTORY ───────────────────────────────────────────────
+
+function renderHistory() {
+  const grid = $('hist-grid');
+  const days = [];
+  for (let i = 0; i < 30; i++) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    days.push(d.toISOString().slice(0, 10));
+  }
+
+  const populated = days.filter(d => tasks[d] && Object.values(tasks[d]).some(a => a.length > 0));
+  if (populated.length === 0) {
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">📅</div>No history yet.</div>`;
+    return;
+  }
+
+  grid.innerHTML = populated.map(dateKey => {
+    const dayTasks = tasks[dateKey] || {};
+    let total = 0, done = 0;
+    let rows = '';
+
+    employees.forEach(emp => {
+      const et = dayTasks[emp.id] || [];
+      if (!et.length) return;
+      total += et.length;
+      const d = et.filter(t => t.done).length;
+      done += d;
+      rows += `<div class="day-emp">
+        <div class="day-emp-name">${emp.name}</div>
+        <div class="day-emp-stat">${d}/${et.length}</div>
+      </div>
+      <div class="day-tasks">${et.map(t => `<div class="day-task-item ${t.done ? 'done' : ''}">${t.done ? '✓' : '○'} ${t.title}</div>`).join('')}</div>`;
+    });
+
+    if (!rows) return '';
+    const pct = total > 0 ? Math.round(done / total * 100) : 0;
+    const label = new Date(dateKey + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+    return `<div class="day-card">
+      <div class="day-head">
+        <div class="day-date">${label}</div>
+        <div class="day-stat">${done}/${total} · ${pct}%</div>
+      </div>
+      <div class="prog"><div class="prog-fill" style="width:${pct}%"></div></div>
+      <div class="day-body">${rows}</div>
+    </div>`;
+  }).filter(Boolean).join('');
+}
+
+// ── TEAM ──────────────────────────────────────────────────
+
+function renderTeam() {
+  const grid = $('team-grid');
+  if (employees.length === 0) {
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">👥</div>No employees yet.</div>`;
+    return;
+  }
+  grid.innerHTML = employees.map((emp, idx) => `
+    <div class="team-card">
+      <div class="team-av ${colorFor(idx)}">${initials(emp.name)}</div>
+      <div class="team-info">
+        <div class="team-name">${emp.name}</div>
+        <div class="team-role">${emp.role || 'Employee'}</div>
+      </div>
+      <div class="icon-btn" data-action="del-emp" data-emp="${emp.id}" style="color:var(--red);border-color:var(--red);opacity:0.6;">
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="2" y1="2" x2="12" y2="12"/><line x1="12" y1="2" x2="2" y2="12"/></svg>
+      </div>
+    </div>`).join('');
+}
+
+// ── TASK ACTIONS ──────────────────────────────────────────
+
+async function toggleTask(taskId, empId) {
+  if (session.role === 'employee' && session.userId !== empId) {
+    toast('You can only check your own tasks', 'var(--red)'); return;
+  }
+  const today = todayKey();
+  const empTasks = (tasks[today] || {})[empId] || [];
+  const task = empTasks.find(t => t.id === taskId);
+  if (!task) return;
+  task.done = !task.done;
+  task.completed_at = task.done ? new Date().toISOString() : null;
+  renderBoard();
+  if (task.done) toast('Task completed! ✓');
+  await dbToggleTask(taskId, task.done);
+}
+
+async function deleteTask(taskId, empId) {
+  if (session.role !== 'admin') return;
+  const today = todayKey();
+  if (tasks[today] && tasks[today][empId]) {
+    tasks[today][empId] = tasks[today][empId].filter(t => t.id !== taskId);
+  }
+  renderBoard();
+  await dbDeleteTask(taskId);
+}
+
+function openAddTask(empId) {
+  addTaskEmpId = empId;
+  $('m-task-text').value = '';
+  $('m-task-pri').value = 'mid';
+  $('modal-task').classList.add('on');
+  setTimeout(() => $('m-task-text').focus(), 300);
+}
+
+async function saveTask() {
+  const title = $('m-task-text').value.trim();
+  if (!title) { toast('Enter a task description', 'var(--red)'); return; }
+  const priority = $('m-task-pri').value;
+  const today = todayKey();
+
+  $('btn-save-task').textContent = 'Saving…';
+  $('btn-save-task').disabled = true;
+  try {
+    const t = await dbAddTask(session.companyId, addTaskEmpId, today, title, priority);
+    if (!tasks[today]) tasks[today] = {};
+    if (!tasks[today][addTaskEmpId]) tasks[today][addTaskEmpId] = [];
+    tasks[today][addTaskEmpId].push(t);
+    $('modal-task').classList.remove('on');
+    renderBoard();
+    toast('Task added!');
+  } catch(e) { toast('Error saving task', 'var(--red)'); }
+  finally {
+    $('btn-save-task').textContent = 'Add Task →';
+    $('btn-save-task').disabled = false;
+  }
+}
+
+async function saveEmployee() {
+  const name = $('m-emp-name').value.trim();
+  const role = $('m-emp-role').value.trim();
+  if (!name) { toast('Enter employee name', 'var(--red)'); return; }
+  if (employees.find(e => e.name.toLowerCase() === name.toLowerCase())) {
+    toast('Already exists', 'var(--red)'); return;
+  }
+
+  $('btn-save-emp').textContent = 'Saving…';
+  $('btn-save-emp').disabled = true;
+  try {
+    const emp = await dbAddEmployee(session.companyId, name, role);
+    employees.push(emp);
+    $('modal-emp').classList.remove('on');
+    renderBoard(); renderTeam();
+    toast(`${name} added!`);
+  } catch(e) { toast('Error saving', 'var(--red)'); }
+  finally {
+    $('btn-save-emp').textContent = 'Add →';
+    $('btn-save-emp').disabled = false;
+  }
+}
+
+async function removeEmployee(empId) {
+  const emp = employees.find(e => e.id === empId);
+  if (!emp || !confirm(`Remove ${emp.name}?`)) return;
+  employees = employees.filter(e => e.id !== empId);
+  renderTeam(); renderBoard();
+  await dbRemoveEmployee(empId);
+  toast(`${emp.name} removed`);
+}
+
+// ── EXPORT CSV ───────────────────────────────────────────
+
+function exportCSV() {
+  let csv = 'Date,Employee,Role,Task,Priority,Status,Created,Completed\n';
+  Object.keys(tasks).sort().reverse().forEach(dateKey => {
+    employees.forEach(emp => {
+      (tasks[dateKey][emp.id] || []).forEach(t => {
+        const d = new Date(dateKey + 'T12:00:00').toLocaleDateString('en-US');
+        csv += `"${d}","${emp.name}","${emp.role||''}","${t.title.replace(/"/g,'""')}","${t.priority}","${t.done?'Done':'Pending'}","${t.created_at}","${t.completed_at||''}"\n`;
+      });
+    });
+  });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  a.download = session.companyName.replace(/\s+/g, '_') + '_tasks.csv';
+  a.click();
+  toast('CSV downloaded!');
+}
+
+// ── TABS ─────────────────────────────────────────────────
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+  ['board','history','team'].forEach(v => {
+    $('view-' + v).classList.toggle('on', v === tab);
+  });
+  if (tab === 'history') renderHistory();
+  if (tab === 'team') renderTeam();
+}
+
+// ── EVENT DELEGATION (one listener, catches everything) ───
+
+document.addEventListener('click', function(e) {
+  const el = e.target.closest('[data-action]');
+  if (el) {
+    const a = el.dataset.action;
+    const emp = el.dataset.emp;
+    const task = el.dataset.task;
+    if (a === 'toggle')        toggleTask(task, emp);
+    if (a === 'del-task')      deleteTask(task, emp);
+    if (a === 'open-add-task') openAddTask(emp);
+    if (a === 'del-emp')       removeEmployee(emp);
+    return;
+  }
+
+  const tabEl = e.target.closest('.tab-btn');
+  if (tabEl && tabEl.dataset.tab) { switchTab(tabEl.dataset.tab); return; }
+});
+
+// ── WIRE STATIC BUTTONS ───────────────────────────────────
+
+$('seg-admin').addEventListener('click', () => switchLoginRole('admin'));
+$('seg-emp').addEventListener('click',   () => switchLoginRole('employee'));
+$('f-company').addEventListener('input', () => { if (loginRole === 'employee') loadEmpSelect(); });
+$('btn-enter').addEventListener('click', doLogin);
+
+$('btn-logout').addEventListener('click', () => {
+  LS.set('bf_session', null);
+  session = {};
+  $('screen-app').classList.remove('active');
+  $('screen-auth').classList.add('active');
+  $('f-company').value = '';
+  $('f-name').value = '';
+  $('f-pin').value = '';
+});
+
+$('btn-open-add-emp').addEventListener('click',  () => { $('m-emp-name').value=''; $('m-emp-role').value=''; $('modal-emp').classList.add('on'); setTimeout(()=>$('m-emp-name').focus(),300); });
+$('btn-open-add-emp2').addEventListener('click', () => { $('m-emp-name').value=''; $('m-emp-role').value=''; $('modal-emp').classList.add('on'); setTimeout(()=>$('m-emp-name').focus(),300); });
+$('btn-export').addEventListener('click', exportCSV);
+
+$('btn-cancel-task').addEventListener('click', () => $('modal-task').classList.remove('on'));
+$('btn-save-task').addEventListener('click', saveTask);
+$('btn-cancel-emp').addEventListener('click',  () => $('modal-emp').classList.remove('on'));
+$('btn-save-emp').addEventListener('click', saveEmployee);
+
+// Close modal on backdrop tap
+document.querySelectorAll('.overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target === o) o.classList.remove('on'); });
+});
+
+// ── AUTO LOGIN if session exists ──────────────────────────
+(async () => {
+  if (session && session.companyId) {
+    try { await enterApp(); } catch(e) { LS.set('bf_session', null); }
+  }
+})();
+</script>
+
+</body>
+</html>
