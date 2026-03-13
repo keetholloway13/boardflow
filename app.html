@@ -1246,8 +1246,18 @@ $('btn-logout').addEventListener('click', ()=>{
   $('f-company').value=''; $('f-pin').value='';
 });
 $('btn-add-unassigned').addEventListener('click',  ()=>openAddTask(null));
-$('btn-open-add-emp').addEventListener('click',    ()=>{ $('m-emp-name').value=''; $('m-emp-role').value=''; $('m-emp-pin').value=''; $('m-emp-pin-confirm').value=''; $('modal-emp').classList.add('on'); setTimeout(()=>$('m-emp-name').focus(),300); });
-$('btn-open-add-emp2').addEventListener('click',   ()=>{ $('m-emp-name').value=''; $('m-emp-role').value=''; $('m-emp-pin').value=''; $('m-emp-pin-confirm').value=''; $('modal-emp').classList.add('on'); setTimeout(()=>$('m-emp-name').focus(),300); });
+function openAddEmployeeModal() {
+  const lim = planLimits();
+  if (employees.length >= lim.employees) {
+    openUpgradeModal(`Your ${companyPlan} plan is limited to ${lim.employees} employees. Upgrade to add more.`);
+    return;
+  }
+  $('m-emp-name').value=''; $('m-emp-role').value=''; $('m-emp-pin').value=''; $('m-emp-pin-confirm').value='';
+  $('modal-emp').classList.add('on');
+  setTimeout(()=>$('m-emp-name').focus(), 300);
+}
+$('btn-open-add-emp').addEventListener('click',  openAddEmployeeModal);
+$('btn-open-add-emp2').addEventListener('click', openAddEmployeeModal);
 $('btn-export').addEventListener('click',          exportCSV);
 $('btn-clear-done').addEventListener('click',      clearDoneTasks);
 $('btn-cancel-task').addEventListener('click',     ()=>$('modal-task').classList.remove('on'));
