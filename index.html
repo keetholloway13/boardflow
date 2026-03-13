@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>BoardFlow</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -45,28 +45,28 @@ body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text
 
 /* TOPBAR */
 #screen-app { min-height: 100vh; }
-.topbar { position: sticky; top: 0; z-index: 50; background: var(--card); border-bottom: 1px solid var(--border); padding: 0 18px; height: 56px; display: flex; align-items: center; justify-content: space-between; }
+.topbar { position: sticky; top: 0; z-index: 50; background: var(--card); border-bottom: 1px solid var(--border); padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
 .topbar-left { display: flex; align-items: center; gap: 12px; }
-.topbar-logo { font-size: 17px; font-weight: 800; letter-spacing: -0.4px; }
+.topbar-logo { font-size: 19px; font-weight: 800; letter-spacing: -0.4px; }
 .topbar-logo span { color: var(--accent); }
-.co-badge { background: var(--card2); border: 1px solid var(--border); padding: 3px 10px; border-radius: 20px; font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text2); max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.co-badge { background: var(--card2); border: 1px solid var(--border); padding: 3px 12px; border-radius: 20px; font-size: 12px; font-family: 'DM Mono', monospace; color: var(--text2); max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .topbar-right { display: flex; align-items: center; gap: 8px; }
 .pill { display: flex; align-items: center; gap: 7px; background: var(--card2); border: 1px solid var(--border); border-radius: 20px; padding: 5px 10px 5px 5px; }
 .av { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; font-weight: 700; color: #0a0b0d; }
-.pill-name { font-size: 12px; font-weight: 600; max-width: 80px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pill-name { font-size: 13px; font-weight: 600; max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .admin-chip { font-size: 9px; font-family: 'DM Mono', monospace; background: var(--accent); color: #0a0b0d; padding: 2px 6px; border-radius: 8px; font-weight: 600; }
 .icon-btn { width: 34px; height: 34px; border: 1.5px solid var(--border); background: var(--card2); border-radius: 9px; display: grid; place-items: center; cursor: pointer; touch-action: manipulation; color: var(--text2); transition: all 0.15s; flex-shrink: 0; }
 .icon-btn:active { background: var(--card3); }
 .icon-btn svg { width: 15px; height: 15px; }
 
 /* TABS */
-.tabs { background: var(--card); border-bottom: 1px solid var(--border); display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.tabs { background: var(--card); border-bottom: 1px solid var(--border); display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding: 0 32px; }
 .tabs::-webkit-scrollbar { display: none; }
 .tab-btn { flex-shrink: 0; padding: 14px 18px; border: none; background: transparent; color: var(--text2); font-family: 'Syne', sans-serif; font-weight: 600; font-size: 13px; cursor: pointer; touch-action: manipulation; border-bottom: 2px solid transparent; transition: all 0.18s; white-space: nowrap; }
 .tab-btn.on { color: var(--text); border-bottom-color: var(--accent); }
 
 /* CONTENT */
-.content { padding: 18px; max-width: 1400px; margin: 0 auto; }
+.content { padding: 24px 32px; max-width: 1600px; margin: 0 auto; }
 .view { display: none; } .view.on { display: block; }
 
 /* BOARD */
@@ -110,7 +110,7 @@ body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text
 .q-chip-del:active { color: var(--red); }
 
 /* COLUMNS */
-.cols { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 14px; }
+.cols { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
 .emp-col { background: var(--card); border: 1.5px solid var(--border); border-radius: 16px; overflow: hidden; transition: border-color 0.2s, box-shadow 0.2s; }
 .emp-col.drag-over { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(232,255,71,0.1); }
 .emp-col.all-done { border-color: rgba(61,255,170,0.3); }
@@ -278,7 +278,8 @@ body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text
 .plan-compare-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 18px; }
 @media (max-width: 520px) { .plan-compare-grid { grid-template-columns: 1fr; } }
 .price-features b { color: var(--text); }
-@media (max-width: 480px) { .auth-box{padding:28px 20px;} .content{padding:14px;} .topbar{padding:0 14px;} .co-badge{display:none;} }
+@media (max-width: 480px) { .auth-box{padding:28px 20px;} .content{padding:14px 16px;} .topbar{padding:0 14px;} .co-badge{display:none;} .tabs{padding:0 14px;} }
+@media (min-width: 1200px) { .board-head h2{font-size:24px;} .tab-btn{font-size:13px; padding:14px 18px;} }
 </style>
 </head>
 <body>
