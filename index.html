@@ -335,7 +335,7 @@ body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text
       <button class="big-btn big-btn-ghost" id="btn-add-note">Add Note</button>
       <button class="big-btn big-btn-accent hide" id="btn-detail-save">Save →</button>
     </div>
-    <div class="modal-row"><button class="big-btn big-btn-red hide admin-el" id="btn-detail-delete">Delete Task</button></div>
+    <div class="modal-row"><button class="big-btn big-btn-red hide" id="btn-detail-delete">Delete Task</button></div>
   </div>
 </div>
 
@@ -689,6 +689,7 @@ function openDetail(taskId, empId) {
   $('detail-desc').disabled = !isAdmin;
   $('detail-pri').disabled  = !isAdmin;
   isAdmin ? show('btn-detail-save') : hide('btn-detail-save');
+  isAdmin ? show('btn-detail-delete') : hide('btn-detail-delete');
   renderNoteThread(task);
   $('note-input').value='';
   $('modal-detail').classList.add('on');
