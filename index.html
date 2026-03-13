@@ -487,10 +487,10 @@ body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text
 const SUPABASE_URL = 'https://iifrdjrnmsodqpmnaqby.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_5KtxU1RruupmthUWz25xpA_NMqvAi7-';
 
-// ── STRIPE CONFIG — fill these in ──────────────────
-const STRIPE_PUB_KEY        = 'pk_live_51TAGZiKfQXZsU4qhAOyVhCXcsLCSvjG4uxCGKhqP1kjiTnHzs0baaOIVKArmvJWkluuVtbd7x7r6aPBtkABZI3yi00VNo4AzDd';
-const STRIPE_PRO_PRICE_ID   = 'price_1TALIgKfQXZsU4qhOiwepUix';
-const STRIPE_BIZ_PRICE_ID   = 'price_1TALIvKfQXZsU4qhOc4lz5wO';
+// ── STRIPE PAYMENT LINKS ───────────────────────────
+const STRIPE_PRO_LINK      = 'https://buy.stripe.com/00w00k3yu3mk3qR8PE9oc01';
+const STRIPE_BIZ_LINK      = 'https://buy.stripe.com/bJe6oIglg9KI4uV0j89oc02';
+const STRIPE_PORTAL_LINK   = 'https://billing.stripe.com/p/login/14AaEYed89KIgdD8PE9oc00';
 // ───────────────────────────────────────────────────
 
 // Plan limits
@@ -545,21 +545,6 @@ function toast(msg, color) {
 
 // ── DB ──────────────────────────────────────────────
 async function dbGetCompany(name)          { const {data}=await sb.from('companies').select('*').ilike('name',name).maybeSingle(); return data; }
-async function dbCreateCheckoutSession(companyId, priceId) {
-  // Calls a Supabase edge function that creates a Stripe checkout session
-  const { data, error } = await sb.functions.invoke('create-checkout', {
-    body: { company_id: companyId, price_id: priceId, return_url: window.location.href }
-  });
-  if (error) throw new Error(error.message);
-  return data.url;
-}
-async function dbCreatePortalSession(companyId) {
-  const { data, error } = await sb.functions.invoke('create-portal', {
-    body: { company_id: companyId, return_url: window.location.href }
-  });
-  if (error) throw new Error(error.message);
-  return data.url;
-}
 async function dbToggleAdminRole(empId, isAdmin) {
   await sb.from('employees').update({ is_admin }).eq('id', empId);
 }
@@ -1233,8 +1218,7 @@ document.querySelectorAll('.overlay').forEach(o=>{ o.addEventListener('click', e
 
 // ── BILLING & UPGRADE ───────────────────────────────
 
-function pricingCardsHTML(context) {
-  // context: 'paywall' | 'upgrade'
+function pricingCardsHTML() {
   return `
     <div class="price-card highlighted" data-action="checkout" data-plan="pro">
       <div class="price-plan" style="color:var(--blue)">PRO</div>
@@ -1261,35 +1245,29 @@ function pricingCardsHTML(context) {
 function showPaywall() {
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   $('screen-paywall').classList.add('active');
-  $('paywall-pricing').innerHTML = pricingCardsHTML('paywall');
+  $('paywall-pricing').innerHTML = pricingCardsHTML();
 }
 
 function openUpgradeModal(reason) {
   $('upgrade-reason').textContent = reason || 'Unlock more features by upgrading your plan.';
-  $('upgrade-pricing').innerHTML  = pricingCardsHTML('upgrade');
-  // Show "Manage subscription" if already paying (to switch plans)
+  $('upgrade-pricing').innerHTML  = pricingCardsHTML();
   $('manage-sub-row').classList.toggle('hide', !isPaid());
   $('modal-upgrade').classList.add('on');
 }
 
-async function startCheckout(plan) {
-  const priceId = plan === 'pro' ? STRIPE_PRO_PRICE_ID : STRIPE_BIZ_PRICE_ID;
-  if (!priceId || priceId.includes('HERE')) {
-    toast('Stripe not configured yet — add your Price IDs','var(--red)'); return;
-  }
-  toast('Redirecting to checkout…');
-  try {
-    const url = await dbCreateCheckoutSession(session.companyId, priceId);
-    window.location.href = url;
-  } catch(e) { toast('Error: '+e.message,'var(--red)'); }
+function startCheckout(plan) {
+  const appUrl = window.location.href.split('?')[0];
+  const link   = plan === 'pro' ? STRIPE_PRO_LINK : STRIPE_BIZ_LINK;
+  if (link.includes('REPLACE')) { toast('Payment links not configured yet','var(--red)'); return; }
+  const url = link
+    + '?client_reference_id=' + encodeURIComponent(session.companyId)
+    + '&success_url=' + encodeURIComponent(appUrl + '?upgraded=' + plan + '&companyId=' + session.companyId);
+  window.open(url, '_blank');
 }
 
-async function openBillingPortal() {
-  toast('Opening billing portal…');
-  try {
-    const url = await dbCreatePortalSession(session.companyId);
-    window.location.href = url;
-  } catch(e) { toast('Error: '+e.message,'var(--red)'); }
+function openBillingPortal() {
+  if (STRIPE_PORTAL_LINK.includes('REPLACE')) { toast('Portal not configured yet','var(--red)'); return; }
+  window.open(STRIPE_PORTAL_LINK, '_blank');
 }
 
 // ── MIDNIGHT AUTO-CLEAR ─────────────────────────────
@@ -1330,15 +1308,19 @@ function scheduleMidnightClear() {
 
 // AUTO LOGIN
 (async()=>{
-  // Handle Stripe redirect back to app
+  // Handle Stripe payment link return
   const params = new URLSearchParams(window.location.search);
-  if (params.get('checkout') === 'success') {
-    toast('Payment successful! Welcome aboard 🎉');
-    // Clean URL
+  const upgradedPlan = params.get('upgraded');
+  const upgradedCoId = params.get('companyId');
+  if (upgradedPlan && upgradedCoId) {
+    // Update plan in Supabase
+    await sb.from('companies').update({
+      plan: upgradedPlan,
+      subscription_status: 'active',
+      trial_ends_at: null,
+    }).eq('id', upgradedCoId);
     window.history.replaceState({}, '', window.location.pathname);
-  } else if (params.get('checkout') === 'cancelled') {
-    toast('Checkout cancelled — no charge made','var(--orange)');
-    window.history.replaceState({}, '', window.location.pathname);
+    toast('Payment successful! Welcome to ' + upgradedPlan.charAt(0).toUpperCase() + upgradedPlan.slice(1) + '! 🎉');
   }
 
   if (session?.companyId) {
