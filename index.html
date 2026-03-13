@@ -238,7 +238,11 @@ body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text
 .plan-business { background: rgba(180,127,255,0.15); color: var(--purple); border: 1px solid rgba(180,127,255,0.3); }
 
 /* UPGRADE BUTTON */
-.upgrade-btn { background: var(--accent); color: #000; border: none; border-radius: 8px; padding: 6px 12px; font-size: 11px; font-weight: 800; cursor: pointer; letter-spacing: 0.3px; transition: opacity 0.15s, transform 0.1s; white-space: nowrap; flex-shrink: 0; }
+.upgrade-btn { display: none; }
+.upgrade-banner { background: rgba(232,255,71,0.07); border: 1px solid rgba(232,255,71,0.2); border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; font-size: 12px; font-family: 'DM Mono', monospace; color: var(--text2); cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.15s; }
+.upgrade-banner:hover { background: rgba(232,255,71,0.12); }
+.upgrade-banner b { color: var(--text); }
+.upgrade-banner-cta { margin-left: auto; color: var(--accent); font-weight: 700; white-space: nowrap; flex-shrink: 0; }
 .upgrade-btn:hover { opacity: 0.85; }
 .upgrade-btn:active { transform: scale(0.97); }
 
@@ -310,7 +314,6 @@ body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text
       <div class="co-badge" id="nav-co"></div>
     </div>
     <div class="topbar-right">
-      <button class="upgrade-btn hide" id="upgrade-btn" onclick="openUpgradeModal()">⚡ Upgrade</button>
       <div class="pill"><div class="av" id="nav-av">?</div><span class="pill-name" id="nav-name"></span><span class="admin-chip hide" id="nav-admin">ADMIN</span></div>
       <div class="icon-btn hide" id="btn-change-emp-pin" title="Change your PIN">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5 7V5a3 3 0 016 0v2"/></svg>
@@ -664,12 +667,14 @@ async function enterApp() {
   $('today-label').textContent = new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
 
   // Plan badge + upgrade button in topbar
-  // Show upgrade button only on free plan for admins
-  const upgradeBtn = $('upgrade-btn');
-  if (session.role === 'admin' && companyPlan === 'free') {
-    upgradeBtn.classList.remove('hide');
-  } else {
-    upgradeBtn.classList.add('hide');
+  // Show upgrade banner only on free plan for admins
+  const upgradeBanner = $('upgrade-banner');
+  if (upgradeBanner) {
+    if (session.role === 'admin' && companyPlan === 'free') {
+      upgradeBanner.classList.remove('hide');
+    } else {
+      upgradeBanner.classList.add('hide');
+    }
   }
   await loadAll();
 }
