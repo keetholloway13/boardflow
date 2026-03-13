@@ -237,6 +237,11 @@ body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text
 .plan-pro      { background: rgba(71,184,255,0.15); color: var(--blue); border: 1px solid rgba(71,184,255,0.3); }
 .plan-business { background: rgba(180,127,255,0.15); color: var(--purple); border: 1px solid rgba(180,127,255,0.3); }
 
+/* UPGRADE BUTTON */
+.upgrade-btn { background: var(--accent); color: #000; border: none; border-radius: 8px; padding: 6px 14px; font-size: 12px; font-weight: 800; cursor: pointer; letter-spacing: 0.3px; transition: opacity 0.15s, transform 0.1s; white-space: nowrap; }
+.upgrade-btn:hover { opacity: 0.85; }
+.upgrade-btn:active { transform: scale(0.97); }
+
 /* ROLE BADGE */
 .role-badge { font-size: 9px; font-family: 'DM Mono', monospace; padding: 1px 6px; border-radius: 6px; font-weight: 600; vertical-align: middle; margin-left: 4px; }
 .admin-badge { background: rgba(232,255,71,0.12); color: var(--accent); border: 1px solid rgba(232,255,71,0.25); }
@@ -251,7 +256,6 @@ body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text
 
 /* UPGRADE MODAL / PRICING CARDS */
 .pricing-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
-@media (max-width: 480px) { .pricing-grid { grid-template-columns: 1fr; } }
 .price-card { background: var(--card2); border: 1.5px solid var(--border); border-radius: 14px; padding: 18px 16px; text-align: left; cursor: pointer; transition: all 0.18s; touch-action: manipulation; }
 .price-card:active { transform: scale(0.98); }
 .price-card.highlighted { border-color: var(--accent); background: rgba(232,255,71,0.04); }
@@ -259,7 +263,16 @@ body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text
 .price-plan { font-size: 13px; font-weight: 800; margin-bottom: 4px; }
 .price-amount { font-size: 26px; font-weight: 800; margin-bottom: 2px; }
 .price-amount span { font-size: 13px; font-weight: 500; color: var(--text2); }
-.price-features { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text2); line-height: 1.9; margin-top: 10px; }
+.price-features { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text2); line-height: 1; margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.price-features b { color: var(--text); }
+.feat-row { display: flex; align-items: center; gap: 7px; }
+.feat-check { color: var(--blue); font-weight: 800; font-size: 12px; flex-shrink: 0; }
+.feat-x { color: var(--text3); font-size: 11px; flex-shrink: 0; }
+.price-cta { margin-top: 14px; font-size: 11px; font-weight: 700; font-family: 'DM Mono', monospace; color: var(--blue); }
+.current-tag { font-size: 9px; font-family: 'DM Mono', monospace; font-weight: 700; letter-spacing: 1px; color: var(--text3); margin-bottom: 6px; }
+.current-plan { opacity: 0.6; cursor: default; pointer-events: none; }
+.plan-compare-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 18px; }
+@media (max-width: 520px) { .plan-compare-grid { grid-template-columns: 1fr; } }
 .price-features b { color: var(--text); }
 @media (max-width: 480px) { .auth-box{padding:28px 20px;} .content{padding:14px;} .topbar{padding:0 14px;} .co-badge{display:none;} }
 </style>
@@ -295,7 +308,8 @@ body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text
     <div class="topbar-left">
       <div class="topbar-logo">Board<span>Flow</span></div>
       <div class="co-badge" id="nav-co"></div>
-      <span class="plan-badge hide" id="plan-badge" style="cursor:pointer;" title="View plans">FREE</span>
+      <span class="plan-badge hide" id="plan-badge">FREE</span>
+      <button class="upgrade-btn hide" id="upgrade-btn" onclick="openUpgradeModal()">⚡ Upgrade</button>
     </div>
     <div class="topbar-right">
       <div class="pill"><div class="av" id="nav-av">?</div><span class="pill-name" id="nav-name"></span><span class="admin-chip hide" id="nav-admin">ADMIN</span></div>
@@ -464,7 +478,7 @@ body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text
 <div class="overlay" id="modal-upgrade">
   <div class="modal">
     <div class="modal-drag"></div>
-    <div class="modal-title">Upgrade Plan</div>
+    <div class="modal-title">Choose a Plan</div>
     <p id="upgrade-reason" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text2);margin-bottom:18px;line-height:1.6;"></p>
     <div class="pricing-grid" id="upgrade-pricing"></div>
     <div style="margin-top:8px;" id="manage-sub-row" class="hide">
@@ -539,7 +553,7 @@ function toast(msg, color) {
 // ── DB ──────────────────────────────────────────────
 async function dbGetCompany(name)          { const {data}=await sb.from('companies').select('*').ilike('name',name).maybeSingle(); return data; }
 async function dbToggleAdminRole(empId, isAdmin) {
-  await sb.from('employees').update({ is_admin }).eq('id', empId);
+  await sb.from('employees').update({ is_admin: isAdmin }).eq('id', empId);
 }
 async function dbCreateCompany(name, pin)  { const {data}=await sb.from('companies').insert({name,pin}).select().single(); return data; }
 async function dbUpdatePin(id, pin)        { await sb.from('companies').update({pin}).eq('id',id); }
@@ -650,11 +664,18 @@ async function enterApp() {
   }
   $('today-label').textContent = new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
 
-  // Plan badge in topbar
+  // Plan badge + upgrade button in topbar
   const planBadge = $('plan-badge');
   planBadge.textContent = companyPlan.toUpperCase();
   planBadge.className = 'plan-badge plan-'+companyPlan;
   planBadge.classList.remove('hide');
+  // Show upgrade button only on free plan for admins
+  const upgradeBtn = $('upgrade-btn');
+  if (session.role === 'admin' && companyPlan === 'free') {
+    upgradeBtn.classList.remove('hide');
+  } else {
+    upgradeBtn.classList.add('hide');
+  }
   await loadAll();
 }
 
@@ -1196,24 +1217,42 @@ document.querySelectorAll('.overlay').forEach(o=>{ o.addEventListener('click', e
 
 function pricingCardsHTML() {
   return `
-    <div class="price-card highlighted" data-action="checkout" data-plan="pro">
-      <div class="price-plan" style="color:var(--blue)">PRO</div>
-      <div class="price-amount">$20<span>/mo</span></div>
-      <div class="price-features">
-        <b>Unlimited</b> employees<br>
-        <b>3</b> admins<br>
-        <b>30-day</b> history<br>
-        CSV export ✓
+    <div class="plan-compare-grid">
+      <!-- FREE (current) -->
+      <div class="price-card current-plan">
+        <div class="current-tag">YOUR PLAN</div>
+        <div class="price-plan" style="color:var(--text2)">FREE</div>
+        <div class="price-amount">$0<span>/mo</span></div>
+        <div class="price-features">
+          <span class="feat-row"><span class="feat-x">✕</span> Up to <b>3</b> employees</span>
+          <span class="feat-row"><span class="feat-x">✕</span> <b>1</b> admin</span>
+          <span class="feat-row"><span class="feat-x">✕</span> <b>7-day</b> history</span>
+          <span class="feat-row"><span class="feat-x">✕</span> No CSV export</span>
+        </div>
       </div>
-    </div>
-    <div class="price-card biz" data-action="checkout" data-plan="business">
-      <div class="price-plan" style="color:var(--purple)">BUSINESS</div>
-      <div class="price-amount">$50<span>/mo</span></div>
-      <div class="price-features">
-        <b>Unlimited</b> employees<br>
-        <b>Unlimited</b> admins<br>
-        <b>30-day</b> history<br>
-        CSV export ✓
+      <!-- PRO -->
+      <div class="price-card highlighted" data-action="checkout" data-plan="pro">
+        <div class="price-plan" style="color:var(--blue)">PRO</div>
+        <div class="price-amount">$20<span>/mo</span></div>
+        <div class="price-features">
+          <span class="feat-row"><span class="feat-check">✓</span> <b>Unlimited</b> employees</span>
+          <span class="feat-row"><span class="feat-check">✓</span> Up to <b>3</b> admins</span>
+          <span class="feat-row"><span class="feat-check">✓</span> <b>30-day</b> history</span>
+          <span class="feat-row"><span class="feat-check">✓</span> CSV export</span>
+        </div>
+        <div class="price-cta">Upgrade to Pro →</div>
+      </div>
+      <!-- BUSINESS -->
+      <div class="price-card biz" data-action="checkout" data-plan="business">
+        <div class="price-plan" style="color:var(--purple)">BUSINESS</div>
+        <div class="price-amount">$50<span>/mo</span></div>
+        <div class="price-features">
+          <span class="feat-row"><span class="feat-check" style="color:var(--purple)">✓</span> <b>Unlimited</b> employees</span>
+          <span class="feat-row"><span class="feat-check" style="color:var(--purple)">✓</span> <b>Unlimited</b> admins</span>
+          <span class="feat-row"><span class="feat-check" style="color:var(--purple)">✓</span> <b>30-day</b> history</span>
+          <span class="feat-row"><span class="feat-check" style="color:var(--purple)">✓</span> CSV export</span>
+        </div>
+        <div class="price-cta" style="color:var(--purple)">Upgrade to Business →</div>
       </div>
     </div>`;
 }
