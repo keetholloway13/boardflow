@@ -960,8 +960,52 @@ $('btn-detail-delete').addEventListener('click',   deleteDetailTask);
 
 document.querySelectorAll('.overlay').forEach(o=>{ o.addEventListener('click', e=>{ if(e.target===o) o.classList.remove('on'); }); });
 
+// ── MIDNIGHT AUTO-CLEAR ─────────────────────────────
+// Deletes completed tasks from any day before today from the DB.
+// Runs once on load, then schedules itself to fire again at the next midnight.
+async function clearOldDoneTasks() {
+  if (!session?.companyId) return;
+  const today = todayKey();
+  const toDelete = [];
+  Object.keys(tasks).forEach(dk => {
+    if (dk >= today) return; // only past days
+    Object.values(tasks[dk]).forEach(arr => {
+      arr.filter(t => t.done).forEach(t => toDelete.push(t.id));
+    });
+  });
+  if (!toDelete.length) return;
+  // Remove from local state
+  Object.keys(tasks).forEach(dk => {
+    if (dk >= today) return;
+    Object.keys(tasks[dk]).forEach(eid => {
+      tasks[dk][eid] = tasks[dk][eid].filter(t => !toDelete.includes(t.id));
+    });
+  });
+  // Delete from Supabase in one go
+  await sb.from('tasks').delete().in('id', toDelete);
+}
+
+function scheduleMidnightClear() {
+  const now  = new Date();
+  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5); // 12:00:05 AM
+  const ms   = next - now;
+  setTimeout(async () => {
+    await loadAll();          // reload fresh data at midnight
+    await clearOldDoneTasks();
+    scheduleMidnightClear();  // reschedule for next midnight
+  }, ms);
+}
+
 // AUTO LOGIN
-(async()=>{ if(session?.companyId){ try{await enterApp();}catch(e){LS.set('bf_session',null);} } })();
+(async()=>{
+  if (session?.companyId) {
+    try {
+      await enterApp();
+      await clearOldDoneTasks(); // clean up any old done tasks on load
+      scheduleMidnightClear();   // keep running until page closes
+    } catch(e) { LS.set('bf_session',null); }
+  }
+})();
 </script>
 </body>
 </html>
