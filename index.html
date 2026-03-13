@@ -308,7 +308,6 @@ body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text
     <div class="topbar-left">
       <div class="topbar-logo">Board<span>Flow</span></div>
       <div class="co-badge" id="nav-co"></div>
-      <span class="plan-badge hide" id="plan-badge">FREE</span>
       <button class="upgrade-btn hide" id="upgrade-btn" onclick="openUpgradeModal()">⚡ Upgrade</button>
     </div>
     <div class="topbar-right">
@@ -665,10 +664,6 @@ async function enterApp() {
   $('today-label').textContent = new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
 
   // Plan badge + upgrade button in topbar
-  const planBadge = $('plan-badge');
-  planBadge.textContent = companyPlan.toUpperCase();
-  planBadge.className = 'plan-badge plan-'+companyPlan;
-  planBadge.classList.remove('hide');
   // Show upgrade button only on free plan for admins
   const upgradeBtn = $('upgrade-btn');
   if (session.role === 'admin' && companyPlan === 'free') {
@@ -1176,7 +1171,6 @@ $('f-company').addEventListener('input', async ()=>{
   $('f-pin-label').textContent=isNew?'Create Company PIN':'Company PIN';
 });
 $('btn-enter').addEventListener('click', doLogin);
-$('plan-badge').addEventListener('click', ()=>{ if(session.role==='admin') openUpgradeModal(); });
 $('btn-logout').addEventListener('click', ()=>{
   LS.set('bf_session',null); session={};
   $('screen-app').classList.remove('active'); $('screen-auth').classList.add('active');
