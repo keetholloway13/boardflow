@@ -286,15 +286,22 @@ body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text
       <input id="f-name" type="text" placeholder="Jane Smith" autocomplete="off" autocorrect="off" autocapitalize="words" />
     </div>
     <div class="field" id="f-pin-wrap">
-      <label>Admin PIN (default: 1234)</label>
-      <input id="f-pin" type="number" inputmode="numeric" pattern="[0-9]*" placeholder="1234" />
+      <label id="f-pin-label">Admin PIN</label>
+      <input id="f-pin" type="password" inputmode="numeric" pattern="[0-9]*" placeholder="Enter your PIN" />
+    </div>
+    <div class="field hide" id="f-pin-confirm-wrap">
+      <label>Confirm PIN</label>
+      <input id="f-pin-confirm" type="password" inputmode="numeric" pattern="[0-9]*" placeholder="Repeat PIN" />
+    </div>
+    <div class="field hide" id="f-pin-hint-wrap">
+      <p style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);margin-top:-6px;">New company — choose a PIN your employees won't know.</p>
     </div>
     <div class="field hide" id="f-emp-wrap">
       <label>Select Your Name</label>
       <select id="f-emp-sel"><option value="">— tap to select —</option></select>
     </div>
     <button class="big-btn big-btn-accent" id="btn-enter">Enter Board →</button>
-    <p class="auth-note">// PIN: 1234 · data saved to Supabase</p>
+    
   </div>
 </div>
 
@@ -368,7 +375,10 @@ body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text
     <div class="view" id="view-team">
       <div class="team-head">
         <h2>Team</h2>
-        <button class="sm-btn sm-btn-accent" id="btn-open-add-emp2">+ Add Employee</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="sm-btn sm-btn-ghost" id="btn-change-pin">🔑 Change PIN</button>
+          <button class="sm-btn sm-btn-accent" id="btn-open-add-emp2">+ Add Employee</button>
+        </div>
       </div>
       <div class="team-grid" id="team-grid"><div class="spinner"></div></div>
     </div>
@@ -432,6 +442,30 @@ body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text
   </div>
 </div>
 
+<!-- MODAL: CHANGE PIN -->
+<div class="overlay" id="modal-pin">
+  <div class="modal">
+    <div class="modal-drag"></div>
+    <div class="modal-title">Change Admin PIN</div>
+    <div class="field">
+      <label>Current PIN</label>
+      <input id="m-pin-current" type="password" inputmode="numeric" pattern="[0-9]*" placeholder="Current PIN" />
+    </div>
+    <div class="field">
+      <label>New PIN</label>
+      <input id="m-pin-new" type="password" inputmode="numeric" pattern="[0-9]*" placeholder="New PIN (min 4 digits)" />
+    </div>
+    <div class="field">
+      <label>Confirm New PIN</label>
+      <input id="m-pin-confirm" type="password" inputmode="numeric" pattern="[0-9]*" placeholder="Repeat new PIN" />
+    </div>
+    <div class="modal-row">
+      <button class="big-btn big-btn-ghost" id="btn-cancel-pin">Cancel</button>
+      <button class="big-btn big-btn-accent" id="btn-save-pin">Save PIN →</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div id="toast"><div class="toast-dot"></div><span id="toast-msg"></span></div>
 
@@ -439,7 +473,7 @@ body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text
 // ═══════════════════════════════════════════════
 const SUPABASE_URL = 'https://iifrdjrnmsodqpmnaqby.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_5KtxU1RruupmthUWz25xpA_NMqvAi7-';
-const ADMIN_PIN    = '1234';
+// PIN is stored per-company in Supabase
 // ═══════════════════════════════════════════════
 
 const COLORS = ['c0','c1','c2','c3','c4','c5','c6','c7'];
@@ -482,9 +516,12 @@ async function dbGetCompany(name) {
   const { data } = await sb.from('companies').select('*').ilike('name', name).maybeSingle();
   return data;
 }
-async function dbCreateCompany(name) {
-  const { data } = await sb.from('companies').insert({ name }).select().single();
+async function dbCreateCompany(name, pin) {
+  const { data } = await sb.from('companies').insert({ name, pin }).select().single();
   return data;
+}
+async function dbUpdatePin(companyId, pin) {
+  await sb.from('companies').update({ pin }).eq('id', companyId);
 }
 async function dbGetEmployees(companyId) {
   const { data } = await sb.from('employees').select('*').eq('company_id', companyId).order('created_at');
@@ -555,9 +592,17 @@ async function doLogin() {
       const name = $('f-name').value.trim();
       const pin  = $('f-pin').value.trim();
       if (!name) { toast('Enter your name','var(--red)'); return; }
-      if (pin !== ADMIN_PIN) { toast('Wrong PIN','var(--red)'); return; }
+      if (!pin)  { toast('Enter a PIN','var(--red)'); return; }
       let co = await dbGetCompany(company);
-      if (!co) co = await dbCreateCompany(company);
+      if (!co) {
+        // New company — validate confirm PIN
+        const confirm = $('f-pin-confirm').value.trim();
+        if (pin !== confirm) { toast('PINs do not match','var(--red)'); return; }
+        if (pin.length < 4)  { toast('PIN must be at least 4 digits','var(--red)'); return; }
+        co = await dbCreateCompany(company, pin);
+      } else {
+        if (pin !== co.pin) { toast('Wrong PIN','var(--red)'); return; }
+      }
       session = { role:'admin', companyName:co.name, companyId:co.id, userName:name, userColor:COLORS[0] };
     } else {
       const empId = $('f-emp-sel').value;
@@ -883,6 +928,25 @@ function renderTeam() {
     </div>`).join('');
 }
 
+// ── CHANGE PIN ────────────────────────────────
+
+async function savePin() {
+  const current  = $('m-pin-current').value.trim();
+  const newPin   = $('m-pin-new').value.trim();
+  const confirm  = $('m-pin-confirm').value.trim();
+  const co = await dbGetCompany(session.companyName);
+  if (!co || current !== co.pin) { toast('Current PIN is wrong','var(--red)'); return; }
+  if (newPin.length < 4)         { toast('New PIN must be at least 4 digits','var(--red)'); return; }
+  if (newPin !== confirm)        { toast('PINs do not match','var(--red)'); return; }
+  $('btn-save-pin').textContent = 'Saving…'; $('btn-save-pin').disabled = true;
+  try {
+    await dbUpdatePin(session.companyId, newPin);
+    $('modal-pin').classList.remove('on');
+    toast('PIN updated! ✓');
+  } catch(e) { toast('Error: '+e.message,'var(--red)'); }
+  finally { $('btn-save-pin').textContent='Save PIN →'; $('btn-save-pin').disabled=false; }
+}
+
 // ── EXPORT ─────────────────────────────────────
 
 function exportCSV() {
@@ -942,7 +1006,17 @@ $('queue-toggle').addEventListener('click', () => {
 
 $('seg-admin').addEventListener('click', ()=>switchLoginRole('admin'));
 $('seg-emp').addEventListener('click',   ()=>switchLoginRole('employee'));
-$('f-company').addEventListener('input', ()=>{ if(loginRole==='employee') loadEmpSelect(); });
+$('f-company').addEventListener('input', async ()=>{
+  if (loginRole==='employee') { loadEmpSelect(); return; }
+  // Check if company exists to show/hide confirm PIN
+  const co = $('f-company').value.trim();
+  if (!co) return;
+  const existing = await dbGetCompany(co);
+  const isNew = !existing;
+  $('f-pin-confirm-wrap').classList.toggle('hide', !isNew);
+  $('f-pin-hint-wrap').classList.toggle('hide', !isNew);
+  $('f-pin-label').textContent = isNew ? 'Create Admin PIN' : 'Admin PIN';
+});
 $('btn-enter').addEventListener('click', doLogin);
 
 $('btn-logout').addEventListener('click', ()=>{
@@ -961,6 +1035,9 @@ $('btn-save-task').addEventListener('click',     saveTask);
 $('btn-cancel-emp').addEventListener('click',    ()=>$('modal-emp').classList.remove('on'));
 $('btn-save-emp').addEventListener('click',      saveEmployee);
 $('btn-cancel-assign').addEventListener('click', ()=>$('modal-assign').classList.remove('on'));
+$('btn-change-pin').addEventListener('click', ()=>{ $('m-pin-current').value=''; $('m-pin-new').value=''; $('m-pin-confirm').value=''; $('modal-pin').classList.add('on'); setTimeout(()=>$('m-pin-current').focus(),300); });
+$('btn-cancel-pin').addEventListener('click',  ()=>$('modal-pin').classList.remove('on'));
+$('btn-save-pin').addEventListener('click',    savePin);
 
 document.querySelectorAll('.overlay').forEach(o=>{
   o.addEventListener('click', e=>{ if(e.target===o) o.classList.remove('on'); });
