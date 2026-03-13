@@ -254,6 +254,7 @@ body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text
     <div class="field hide" id="f-pin-confirm-wrap"><label>Confirm PIN</label><input id="f-pin-confirm" type="password" inputmode="numeric" placeholder="Repeat PIN"/></div>
     <div class="field hide" id="f-pin-hint-wrap"><p style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);margin-top:-6px;">New company — set a PIN your team won't know.</p></div>
     <div class="field hide" id="f-emp-wrap"><label>Your Name</label><select id="f-emp-sel"><option value="">— select your name —</option></select></div>
+    <div class="field hide" id="f-emp-pin-wrap"><label>Your PIN</label><input id="f-emp-pin" type="password" inputmode="numeric" placeholder="Your PIN"/></div>
     <button class="big-btn big-btn-accent" id="btn-enter">Enter Board →</button>
   </div>
 </div>
@@ -267,6 +268,9 @@ body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text
     </div>
     <div class="topbar-right">
       <div class="pill"><div class="av" id="nav-av">?</div><span class="pill-name" id="nav-name"></span><span class="admin-chip hide" id="nav-admin">ADMIN</span></div>
+      <div class="icon-btn hide" id="btn-change-emp-pin" title="Change your PIN">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5 7V5a3 3 0 016 0v2"/></svg>
+      </div>
       <div class="icon-btn" id="btn-logout"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3H3a1 1 0 00-1 1v8a1 1 0 001 1h3M10 5l3 3-3 3M13 8H6"/></svg></div>
     </div>
   </div>
@@ -372,9 +376,29 @@ body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text
     <div class="modal-title">Add Employee</div>
     <div class="field"><label>Full Name</label><input id="m-emp-name" type="text" placeholder="Jane Smith" autocapitalize="words" autocorrect="off"/></div>
     <div class="field"><label>Job Title</label><input id="m-emp-role" type="text" placeholder="Driver" autocapitalize="words" autocorrect="off"/></div>
+    <div class="field"><label>Employee PIN</label><input id="m-emp-pin" type="password" inputmode="numeric" placeholder="Min 4 digits"/></div>
+    <div class="field"><label>Confirm PIN</label><input id="m-emp-pin-confirm" type="password" inputmode="numeric" placeholder="Repeat PIN"/></div>
     <div class="modal-row">
       <button class="big-btn big-btn-ghost" id="btn-cancel-emp">Cancel</button>
       <button class="big-btn big-btn-accent" id="btn-save-emp">Add →</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CHANGE EMPLOYEE PIN -->
+<div class="overlay" id="modal-emp-pin">
+  <div class="modal">
+    <div class="modal-drag"></div>
+    <div class="modal-title" id="emp-pin-modal-title">Change Your PIN</div>
+    <div class="field" id="emp-pin-current-wrap">
+      <label>Current PIN</label>
+      <input id="m-emp-pin-current" type="password" inputmode="numeric" placeholder="Current PIN"/>
+    </div>
+    <div class="field"><label>New PIN</label><input id="m-emp-pin-new" type="password" inputmode="numeric" placeholder="New PIN (min 4 digits)"/></div>
+    <div class="field"><label>Confirm New PIN</label><input id="m-emp-pin-confirm2" type="password" inputmode="numeric" placeholder="Repeat new PIN"/></div>
+    <div class="modal-row">
+      <button class="big-btn big-btn-ghost" id="btn-cancel-emp-pin">Cancel</button>
+      <button class="big-btn big-btn-accent" id="btn-save-emp-pin">Save PIN →</button>
     </div>
   </div>
 </div>
@@ -441,7 +465,8 @@ async function dbGetCompany(name)          { const {data}=await sb.from('compani
 async function dbCreateCompany(name, pin)  { const {data}=await sb.from('companies').insert({name,pin}).select().single(); return data; }
 async function dbUpdatePin(id, pin)        { await sb.from('companies').update({pin}).eq('id',id); }
 async function dbGetEmployees(cid)         { const {data}=await sb.from('employees').select('*').eq('company_id',cid).order('created_at'); return data||[]; }
-async function dbAddEmployee(cid,name,role){ const {data}=await sb.from('employees').insert({company_id:cid,name,role}).select().single(); return data; }
+async function dbAddEmployee(cid,name,role,pin){ const {data}=await sb.from('employees').insert({company_id:cid,name,role,pin}).select().single(); return data; }
+async function dbUpdateEmpPin(empId,pin){ await sb.from('employees').update({pin}).eq('id',empId); }
 async function dbRemoveEmployee(id)        { await sb.from('employees').delete().eq('id',id); }
 async function dbGetTasks(cid, since)      { const {data}=await sb.from('tasks').select('*').eq('company_id',cid).gte('date_key',since).order('created_at'); return data||[]; }
 async function dbAddTask(cid,eid,dk,title,priority) { const {data}=await sb.from('tasks').insert({company_id:cid,employee_id:eid,date_key:dk,title,priority,done:false}).select().single(); return data; }
@@ -466,12 +491,21 @@ async function loadEmpSelect() {
   const co  = $('f-company').value.trim();
   const sel = $('f-emp-sel');
   sel.innerHTML = '<option value="">— select your name —</option>';
+  $('f-emp-pin-wrap').classList.add('hide');
+  $('f-emp-pin').value = '';
   if (!co) return;
   const company = await dbGetCompany(co);
   if (!company) return;
   const emps = await dbGetEmployees(company.id);
   emps.forEach(e => { const o=document.createElement('option'); o.value=e.id; o.textContent=e.name; sel.appendChild(o); });
 }
+
+// Show PIN field once a name is chosen
+$('f-emp-sel').addEventListener('change', () => {
+  const chosen = $('f-emp-sel').value;
+  $('f-emp-pin-wrap').classList.toggle('hide', !chosen);
+  if (chosen) setTimeout(() => $('f-emp-pin').focus(), 100);
+});
 
 async function doLogin() {
   const company = $('f-company').value.trim();
@@ -495,11 +529,14 @@ async function doLogin() {
     } else {
       const empId=$('f-emp-sel').value;
       if (!empId) { toast('Select your name','var(--red)'); return; }
+      const empPin=$('f-emp-pin').value.trim();
+      if (!empPin) { toast('Enter your PIN','var(--red)'); return; }
       const co = await dbGetCompany(company);
       if (!co) { toast('Company not found','var(--red)'); return; }
       const emps = await dbGetEmployees(co.id);
       const emp  = emps.find(e=>e.id===empId);
       if (!emp) { toast('Employee not found','var(--red)'); return; }
+      if (empPin !== emp.pin) { toast('Wrong PIN','var(--red)'); return; }
       session = { role:'employee', companyName:co.name, companyId:co.id, userName:emp.name, userColor:colorFor(emps.indexOf(emp)), userId:emp.id };
     }
     LS.set('bf_session', session);
@@ -520,6 +557,8 @@ async function enterApp() {
     show('nav-admin');
     document.querySelectorAll('.admin-el').forEach(e=>e.classList.remove('hide'));
     document.querySelectorAll('.admin-tab').forEach(e=>e.classList.remove('hide'));
+  } else {
+    show('btn-change-emp-pin');
   }
   $('today-label').textContent = new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
   await loadAll();
@@ -812,11 +851,15 @@ function toggleColSort(empId) {
 // ── EMPLOYEES ───────────────────────────────────────
 async function saveEmployee() {
   const name=$('m-emp-name').value.trim(), role=$('m-emp-role').value.trim();
+  const pin=$('m-emp-pin').value.trim(), pinConfirm=$('m-emp-pin-confirm').value.trim();
   if (!name) { toast('Enter employee name','var(--red)'); return; }
+  if (!pin)  { toast('Enter an employee PIN','var(--red)'); return; }
+  if (pin.length < 4) { toast('PIN must be at least 4 digits','var(--red)'); return; }
+  if (pin !== pinConfirm) { toast('PINs do not match','var(--red)'); return; }
   if (employees.find(e=>e.name.toLowerCase()===name.toLowerCase())) { toast('Already exists','var(--red)'); return; }
   $('btn-save-emp').textContent='Saving…'; $('btn-save-emp').disabled=true;
   try {
-    const emp=await dbAddEmployee(session.companyId, name, role);
+    const emp=await dbAddEmployee(session.companyId, name, role, pin);
     employees.push(emp); $('modal-emp').classList.remove('on'); renderBoard(); renderTeam(); toast(`${name} added!`);
   } catch(e) { toast('Error: '+e.message,'var(--red)'); }
   finally { $('btn-save-emp').textContent='Add →'; $('btn-save-emp').disabled=false; }
@@ -854,6 +897,49 @@ function renderHistory() {
   }).filter(Boolean).join('');
 }
 
+// ── EMPLOYEE PIN MANAGEMENT ─────────────────────────────
+
+let resettingEmpId = null; // admin resetting a specific employee's PIN
+
+function openChangeEmpPinModal(empId) {
+  resettingEmpId = empId || null;
+  const isAdminReset = !!empId;
+  $('emp-pin-modal-title').textContent = isAdminReset ? 'Reset Employee PIN' : 'Change Your PIN';
+  // Admin reset: skip current PIN check
+  $('emp-pin-current-wrap').classList.toggle('hide', isAdminReset);
+  $('m-emp-pin-current').value = '';
+  $('m-emp-pin-new').value = '';
+  $('m-emp-pin-confirm2').value = '';
+  $('modal-emp-pin').classList.add('on');
+  setTimeout(() => (isAdminReset ? $('m-emp-pin-new') : $('m-emp-pin-current')).focus(), 300);
+}
+
+async function saveEmpPin() {
+  const newPin  = $('m-emp-pin-new').value.trim();
+  const confirm = $('m-emp-pin-confirm2').value.trim();
+  if (newPin.length < 4) { toast('PIN must be at least 4 digits','var(--red)'); return; }
+  if (newPin !== confirm) { toast('PINs do not match','var(--red)'); return; }
+
+  const isAdminReset = !!resettingEmpId;
+
+  if (!isAdminReset) {
+    // Employee changing their own PIN — verify current
+    const current = $('m-emp-pin-current').value.trim();
+    const emps = await dbGetEmployees(session.companyId);
+    const emp  = emps.find(e => e.id === session.userId);
+    if (!emp || current !== emp.pin) { toast('Current PIN is wrong','var(--red)'); return; }
+  }
+
+  $('btn-save-emp-pin').textContent = 'Saving…'; $('btn-save-emp-pin').disabled = true;
+  try {
+    const targetId = isAdminReset ? resettingEmpId : session.userId;
+    await dbUpdateEmpPin(targetId, newPin);
+    $('modal-emp-pin').classList.remove('on');
+    toast(isAdminReset ? 'PIN reset!' : 'PIN updated! ✓');
+  } catch(e) { toast('Error: '+e.message,'var(--red)'); }
+  finally { $('btn-save-emp-pin').textContent = 'Save PIN →'; $('btn-save-emp-pin').disabled = false; }
+}
+
 // ── TEAM ────────────────────────────────────────────
 function renderTeam() {
   const grid=$('team-grid');
@@ -862,8 +948,13 @@ function renderTeam() {
     <div class="team-card">
       <div class="team-av ${colorFor(idx)}">${initials(emp.name)}</div>
       <div class="team-info"><div class="team-name">${esc(emp.name)}</div><div class="team-role">${esc(emp.role||'Employee')}</div></div>
-      <div class="icon-btn" data-action="del-emp" data-emp="${emp.id}" style="color:var(--red);border-color:var(--red);opacity:0.6;">
-        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="2" y1="2" x2="12" y2="12"/><line x1="12" y1="2" x2="2" y2="12"/></svg>
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        <div class="icon-btn" data-action="reset-emp-pin" data-emp="${emp.id}" title="Reset PIN" style="color:var(--blue);border-color:var(--blue);opacity:0.7;">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5 7V5a3 3 0 016 0v2"/></svg>
+        </div>
+        <div class="icon-btn" data-action="del-emp" data-emp="${emp.id}" title="Remove" style="color:var(--red);border-color:var(--red);opacity:0.6;">
+          <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="2" y1="2" x2="12" y2="12"/><line x1="12" y1="2" x2="2" y2="12"/></svg>
+        </div>
       </div>
     </div>`).join('');
 }
@@ -915,7 +1006,8 @@ document.addEventListener('click', function(e) {
   if (a==='del-task')      { e.stopPropagation(); deleteTask(task,emp); return; }
   if (a==='open-detail')   { if(!e.target.closest('.check-box,.del-btn,.q-chip-assign,.q-chip-del')) openDetail(task,emp); return; }
   if (a==='open-add-task') { openAddTask(emp); return; }
-  if (a==='del-emp')       { removeEmployee(emp); return; }
+  if (a==='del-emp')         { removeEmployee(emp); return; }
+  if (a==='reset-emp-pin')   { openChangeEmpPinModal(emp); return; }
   if (a==='open-assign')   { e.stopPropagation(); openAssignModal(task); return; }
   if (a==='del-unassigned'){ e.stopPropagation(); deleteUnassigned(task); return; }
   if (a==='sort-col')      { toggleColSort(emp); return; }
@@ -942,8 +1034,8 @@ $('btn-logout').addEventListener('click', ()=>{
   $('f-company').value=''; $('f-name').value=''; $('f-pin').value='';
 });
 $('btn-add-unassigned').addEventListener('click',  ()=>openAddTask(null));
-$('btn-open-add-emp').addEventListener('click',    ()=>{ $('m-emp-name').value=''; $('m-emp-role').value=''; $('modal-emp').classList.add('on'); setTimeout(()=>$('m-emp-name').focus(),300); });
-$('btn-open-add-emp2').addEventListener('click',   ()=>{ $('m-emp-name').value=''; $('m-emp-role').value=''; $('modal-emp').classList.add('on'); setTimeout(()=>$('m-emp-name').focus(),300); });
+$('btn-open-add-emp').addEventListener('click',    ()=>{ $('m-emp-name').value=''; $('m-emp-role').value=''; $('m-emp-pin').value=''; $('m-emp-pin-confirm').value=''; $('modal-emp').classList.add('on'); setTimeout(()=>$('m-emp-name').focus(),300); });
+$('btn-open-add-emp2').addEventListener('click',   ()=>{ $('m-emp-name').value=''; $('m-emp-role').value=''; $('m-emp-pin').value=''; $('m-emp-pin-confirm').value=''; $('modal-emp').classList.add('on'); setTimeout(()=>$('m-emp-name').focus(),300); });
 $('btn-export').addEventListener('click',          exportCSV);
 $('btn-clear-done').addEventListener('click',      clearDoneTasks);
 $('btn-cancel-task').addEventListener('click',     ()=>$('modal-task').classList.remove('on'));
@@ -955,6 +1047,9 @@ $('btn-change-pin').addEventListener('click',      ()=>{ $('m-pin-current').valu
 $('btn-cancel-pin').addEventListener('click',      ()=>$('modal-pin').classList.remove('on'));
 $('btn-save-pin').addEventListener('click',        savePin);
 $('btn-detail-close').addEventListener('click',    ()=>$('modal-detail').classList.remove('on'));
+$('btn-change-emp-pin').addEventListener('click',  ()=>openChangeEmpPinModal(null));
+$('btn-cancel-emp-pin').addEventListener('click',  ()=>$('modal-emp-pin').classList.remove('on'));
+$('btn-save-emp-pin').addEventListener('click',    saveEmpPin);
 $('btn-add-note').addEventListener('click',        ()=>submitNote());
 $('btn-detail-save').addEventListener('click',     saveDetail);
 $('btn-detail-delete').addEventListener('click',   deleteDetailTask);
