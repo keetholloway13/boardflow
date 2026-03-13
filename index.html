@@ -696,7 +696,7 @@ async function loadAll() {
     if (!tasks[t.date_key][t.employee_id]) tasks[t.date_key][t.employee_id]=[];
     tasks[t.date_key][t.employee_id].push(t);
   });
-  renderBoard(); renderHistory(); renderTeam();
+  renderBoard(); renderHistory().catch(()=>{}); renderTeam();
 }
 
 // ── QUEUE ───────────────────────────────────────────
