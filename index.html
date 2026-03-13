@@ -249,10 +249,9 @@ body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text
       <button class="seg-btn" id="seg-emp">Employee</button>
     </div>
     <div class="field"><label>Company Name</label><input id="f-company" type="text" placeholder="Acme Trucking" autocomplete="off" autocorrect="off" autocapitalize="words"/></div>
-    <div class="field" id="f-name-wrap"><label>Your Name</label><input id="f-name" type="text" placeholder="Jane Smith" autocomplete="off" autocorrect="off" autocapitalize="words"/></div>
-    <div class="field" id="f-pin-wrap"><label id="f-pin-label">Admin PIN</label><input id="f-pin" type="password" inputmode="numeric" placeholder="Enter PIN"/></div>
+    <div class="field" id="f-pin-wrap"><label id="f-pin-label">Company PIN</label><input id="f-pin" type="password" inputmode="numeric" placeholder="Enter PIN"/></div>
     <div class="field hide" id="f-pin-confirm-wrap"><label>Confirm PIN</label><input id="f-pin-confirm" type="password" inputmode="numeric" placeholder="Repeat PIN"/></div>
-    <div class="field hide" id="f-pin-hint-wrap"><p style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);margin-top:-6px;">New company — set a PIN your team won't know.</p></div>
+    <div class="field hide" id="f-pin-hint-wrap"><p style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);margin-top:-6px;">New company — set a PIN only admins will know.</p></div>
     <div class="field hide" id="f-emp-wrap"><label>Your Name</label><select id="f-emp-sel"><option value="">— select your name —</option></select></div>
     <div class="field hide" id="f-emp-pin-wrap"><label>Your PIN</label><input id="f-emp-pin" type="password" inputmode="numeric" placeholder="Your PIN"/></div>
     <button class="big-btn big-btn-accent" id="btn-enter">Enter Board →</button>
@@ -481,7 +480,6 @@ function switchLoginRole(role) {
   loginRole = role;
   $('seg-admin').classList.toggle('on', role==='admin');
   $('seg-emp').classList.toggle('on',   role==='employee');
-  $('f-name-wrap').classList.toggle('hide', role==='employee');
   $('f-pin-wrap').classList.toggle('hide',  role==='employee');
   $('f-emp-wrap').classList.toggle('hide',  role==='admin');
   if (role==='employee') loadEmpSelect();
@@ -513,9 +511,8 @@ async function doLogin() {
   $('btn-enter').textContent='Loading…'; $('btn-enter').disabled=true;
   try {
     if (loginRole==='admin') {
-      const name=$('f-name').value.trim(), pin=$('f-pin').value.trim();
-      if (!name) { toast('Enter your name','var(--red)'); return; }
-      if (!pin)  { toast('Enter a PIN','var(--red)'); return; }
+      const pin=$('f-pin').value.trim();
+      if (!pin)  { toast('Enter company PIN','var(--red)'); return; }
       let co = await dbGetCompany(company);
       if (!co) {
         const confirm=$('f-pin-confirm').value.trim();
@@ -525,7 +522,7 @@ async function doLogin() {
       } else {
         if (pin!==co.pin) { toast('Wrong PIN','var(--red)'); return; }
       }
-      session = { role:'admin', companyName:co.name, companyId:co.id, userName:name, userColor:COLORS[0] };
+      session = { role:'admin', companyName:co.name, companyId:co.id, userName:'Admin', userColor:COLORS[0] };
     } else {
       const empId=$('f-emp-sel').value;
       if (!empId) { toast('Select your name','var(--red)'); return; }
@@ -553,6 +550,12 @@ async function enterApp() {
   $('nav-name').textContent = session.userName;
   $('nav-av').textContent   = initials(session.userName);
   $('nav-av').className     = 'av '+(session.userColor||COLORS[0]);
+  // Always reset admin UI first, then selectively show for admin role
+  hide('nav-admin');
+  hide('btn-change-emp-pin');
+  document.querySelectorAll('.admin-el').forEach(e=>e.classList.add('hide'));
+  document.querySelectorAll('.admin-tab').forEach(e=>e.classList.add('hide'));
+
   if (session.role==='admin') {
     show('nav-admin');
     document.querySelectorAll('.admin-el').forEach(e=>e.classList.remove('hide'));
@@ -943,18 +946,19 @@ async function saveEmpPin() {
 // ── TEAM ────────────────────────────────────────────
 function renderTeam() {
   const grid=$('team-grid');
+  const isAdmin = session.role === 'admin';
   if (!employees.length){grid.innerHTML=`<div class="empty" style="grid-column:1/-1"><div class="empty-icon">👥</div>No employees yet.</div>`;return;}
   grid.innerHTML=employees.map((emp,idx)=>`
     <div class="team-card">
       <div class="team-av ${colorFor(idx)}">${initials(emp.name)}</div>
       <div class="team-info"><div class="team-name">${esc(emp.name)}</div><div class="team-role">${esc(emp.role||'Employee')}</div></div>
       <div style="display:flex;gap:6px;flex-shrink:0;">
-        <div class="icon-btn" data-action="reset-emp-pin" data-emp="${emp.id}" title="Reset PIN" style="color:var(--blue);border-color:var(--blue);opacity:0.7;">
+        ${isAdmin ? `<div class="icon-btn" data-action="reset-emp-pin" data-emp="${emp.id}" title="Reset PIN" style="color:var(--blue);border-color:var(--blue);opacity:0.7;">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5 7V5a3 3 0 016 0v2"/></svg>
         </div>
         <div class="icon-btn" data-action="del-emp" data-emp="${emp.id}" title="Remove" style="color:var(--red);border-color:var(--red);opacity:0.6;">
           <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="2" y1="2" x2="12" y2="12"/><line x1="12" y1="2" x2="2" y2="12"/></svg>
-        </div>
+        </div>` : ''}
       </div>
     </div>`).join('');
 }
@@ -1025,13 +1029,13 @@ $('f-company').addEventListener('input', async ()=>{
   const ex=await dbGetCompany(co); const isNew=!ex;
   $('f-pin-confirm-wrap').classList.toggle('hide',!isNew);
   $('f-pin-hint-wrap').classList.toggle('hide',!isNew);
-  $('f-pin-label').textContent=isNew?'Create Admin PIN':'Admin PIN';
+  $('f-pin-label').textContent=isNew?'Create Company PIN':'Company PIN';
 });
 $('btn-enter').addEventListener('click', doLogin);
 $('btn-logout').addEventListener('click', ()=>{
   LS.set('bf_session',null); session={};
   $('screen-app').classList.remove('active'); $('screen-auth').classList.add('active');
-  $('f-company').value=''; $('f-name').value=''; $('f-pin').value='';
+  $('f-company').value=''; $('f-pin').value='';
 });
 $('btn-add-unassigned').addEventListener('click',  ()=>openAddTask(null));
 $('btn-open-add-emp').addEventListener('click',    ()=>{ $('m-emp-name').value=''; $('m-emp-role').value=''; $('m-emp-pin').value=''; $('m-emp-pin-confirm').value=''; $('modal-emp').classList.add('on'); setTimeout(()=>$('m-emp-name').focus(),300); });
