@@ -1000,28 +1000,85 @@ async function removeEmployee(empId) {
 }
 
 // ── HISTORY ─────────────────────────────────────────
-function renderHistory() {
+async function renderHistory() {
   const grid=$('hist-grid');
-  const histDays=planLimits().historyDays; const days=[]; for(let i=0;i<histDays;i++){const d=new Date();d.setDate(d.getDate()-i);days.push(d.toISOString().slice(0,10));}
-  const populated=days.filter(d=>tasks[d]&&Object.values(tasks[d]).some(a=>a.length>0));
-  if (!populated.length) { grid.innerHTML=`<div class="empty" style="grid-column:1/-1"><div class="empty-icon">📅</div>No history yet.</div>`; return; }
-  grid.innerHTML=populated.map(dateKey=>{
-    const dt=tasks[dateKey]||{}; let total=0,done=0,rows='';
-    employees.forEach(emp=>{
-      const et=dt[emp.id]||[]; if(!et.length)return;
-      total+=et.length; const d=et.filter(t=>t.done).length; done+=d;
-      rows+=`<div class="day-emp"><div class="day-emp-name">${esc(emp.name)}</div><div class="day-emp-stat">${d}/${et.length}</div></div>
-        <div class="day-tasks">${et.map(t=>{
-          const noteLines=t.note?t.note.split('\n').filter(Boolean):[];
+  grid.innerHTML='<div class="spinner"></div>';
+
+  const histDays = planLimits().historyDays;
+  const today    = todayKey();
+
+  // Fetch from tasks_history archive
+  const { data: archived } = await sb.from('tasks_history')
+    .select('*')
+    .eq('company_id', session.companyId)
+    .order('date_key', { ascending: false })
+    .limit(histDays * 50); // reasonable cap
+
+  // Also include today's tasks from live tasks table (not yet archived)
+  const todayTasks = [];
+  if (tasks[today]) {
+    Object.values(tasks[today]).forEach(arr => arr.forEach(t => {
+      const emp = employees.find(e=>e.id===t.employee_id);
+      todayTasks.push({ ...t, date_key: today, employee_name: emp?emp.name:'Unassigned', done: t.done });
+    }));
+  }
+
+  const allTasks = [...(archived||[]), ...todayTasks];
+  if (!allTasks.length) {
+    grid.innerHTML=`<div class="empty" style="grid-column:1/-1"><div class="empty-icon">📅</div>No history yet.</div>`;
+    return;
+  }
+
+  // Group by date
+  const byDate = {};
+  allTasks.forEach(t => {
+    if (!byDate[t.date_key]) byDate[t.date_key] = [];
+    byDate[t.date_key].push(t);
+  });
+
+  // Only show last histDays days
+  const days = [];
+  for (let i=0; i<histDays; i++) {
+    const d=new Date(); d.setDate(d.getDate()-i);
+    days.push(d.toISOString().slice(0,10));
+  }
+
+  const cards = days.map(dateKey => {
+    const dayTasks = byDate[dateKey];
+    if (!dayTasks || !dayTasks.length) return '';
+
+    // Group by employee name
+    const byEmp = {};
+    dayTasks.forEach(t => {
+      const name = t.employee_name || 'Unassigned';
+      if (!byEmp[name]) byEmp[name] = [];
+      byEmp[name].push(t);
+    });
+
+    let total=0, done=0, rows='';
+    Object.entries(byEmp).forEach(([empName, empTasks]) => {
+      if (!empTasks.length) return;
+      total += empTasks.length;
+      const d = empTasks.filter(t=>t.done).length;
+      done += d;
+      rows += `<div class="day-emp"><div class="day-emp-name">${esc(empName)}</div><div class="day-emp-stat">${d}/${empTasks.length}</div></div>
+        <div class="day-tasks">${empTasks.map(t=>{
+          const noteLines=t.note?t.note.split('
+').filter(Boolean):[];
           const notesHTML=noteLines.map(line=>{const sep=line.indexOf('||');const who=sep>-1?line.slice(0,sep):'';const txt=sep>-1?line.slice(sep+2):line;return`<div class="day-task-note">💬 ${esc(who)}: ${esc(txt)}</div>`;}).join('');
           return`<div class="day-task-item ${t.done?'done':''}">${t.done?'✓':'○'} ${esc(t.title)}</div>${notesHTML}`;
         }).join('')}</div>`;
     });
+
     if (!rows) return '';
-    const pct=total>0?Math.round(done/total*100):0;
-    const label=new Date(dateKey+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+    const pct = total>0 ? Math.round(done/total*100) : 0;
+    const label = new Date(dateKey+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
     return `<div class="day-card"><div class="day-head"><div class="day-date">${label}</div><div class="day-stat">${done}/${total} · ${pct}%</div></div><div class="prog"><div class="prog-fill" style="width:${pct}%"></div></div><div class="day-body">${rows}</div></div>`;
-  }).filter(Boolean).join('');
+  }).filter(Boolean);
+
+  grid.innerHTML = cards.length
+    ? cards.join('')
+    : `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">📅</div>No history yet.</div>`;
 }
 
 // ── EMPLOYEE PIN MANAGEMENT ─────────────────────────────
@@ -1301,14 +1358,39 @@ function openBillingPortal() {
 async function clearOldDoneTasks() {
   if (!session?.companyId) return;
   const today = todayKey();
-  const toDelete = [];
+  const toArchive = [];
+  const toDelete  = [];
+
   Object.keys(tasks).forEach(dk => {
-    if (dk >= today) return; // only past days
+    if (dk >= today) return;
     Object.values(tasks[dk]).forEach(arr => {
-      arr.filter(t => t.done).forEach(t => toDelete.push(t.id));
+      arr.filter(t => t.done).forEach(t => {
+        // Find employee name for snapshot
+        const emp = employees.find(e => e.id === t.employee_id);
+        toArchive.push({
+          original_id:   t.id,
+          company_id:    session.companyId,
+          employee_id:   t.employee_id || null,
+          employee_name: emp ? emp.name : 'Unassigned',
+          date_key:      dk,
+          title:         t.title,
+          priority:      t.priority,
+          done:          t.done,
+          note:          t.note || null,
+          completed_at:  t.completed_at || null,
+        });
+        toDelete.push(t.id);
+      });
     });
   });
+
   if (!toDelete.length) return;
+
+  // Archive to tasks_history first
+  if (toArchive.length) {
+    await sb.from('tasks_history').insert(toArchive);
+  }
+
   // Remove from local state
   Object.keys(tasks).forEach(dk => {
     if (dk >= today) return;
@@ -1316,7 +1398,8 @@ async function clearOldDoneTasks() {
       tasks[dk][eid] = tasks[dk][eid].filter(t => !toDelete.includes(t.id));
     });
   });
-  // Delete from Supabase in one go
+
+  // Delete from tasks table
   await sb.from('tasks').delete().in('id', toDelete);
 }
 
