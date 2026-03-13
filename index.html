@@ -331,7 +331,7 @@ body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text
     <!-- BOARD -->
     <div class="view on" id="view-board">
       <div class="upgrade-banner hide admin-el" id="upgrade-banner" onclick="openUpgradeModal()">
-        ⚡ You're on the free plan — <b>3 employees, 2 admins max</b>. Upgrade to unlock unlimited employees, admins &amp; CSV export.
+        ⚡ You're on the free plan — <b>3 employees, 1 admin max</b>. Upgrade to unlock unlimited employees, admins &amp; CSV export.
         <span class="upgrade-banner-cta">See Plans →</span>
       </div>
       <div class="board-head">
@@ -511,7 +511,7 @@ const STRIPE_PORTAL_LINK   = 'https://billing.stripe.com/p/login/14AaEYed89KIgdD
 
 // Plan limits
 const PLAN_LIMITS = {
-  free:     { employees: 3,        admins: 2,  historyDays: 7,  csvExport: false },
+  free:     { employees: 3,        admins: 1,  historyDays: 7,  csvExport: false },
   pro:      { employees: Infinity, admins: 3,  historyDays: 30, csvExport: true  },
   business: { employees: Infinity, admins: Infinity, historyDays: 30, csvExport: true },
 };
@@ -1069,10 +1069,12 @@ async function saveEmpPin() {
 async function toggleAdminRole(empId) {
   const emp = employees.find(e=>e.id===empId); if (!emp) return;
   const lim = planLimits();
-  const currentAdmins = employees.filter(e=>e.is_admin).length;
+  // Count current admins from live employees array, excluding this employee if removing
+  const currentAdmins = employees.filter(e=>e.id!==empId && e.is_admin).length;
   if (!emp.is_admin && currentAdmins >= lim.admins) {
     const planName = companyPlan === 'free' ? 'Free' : companyPlan === 'pro' ? 'Pro' : 'Business';
-    openUpgradeModal(`Your ${planName} plan allows up to ${lim.admins === Infinity ? 'unlimited' : lim.admins} admin${lim.admins===1?'':'s'}. Upgrade to promote more employees.`);
+    const maxAdmins = lim.admins === Infinity ? 'unlimited' : lim.admins;
+    openUpgradeModal(`Your ${planName} plan allows up to ${maxAdmins} admin${lim.admins===1?'':'s'}. Upgrade to promote more employees.`);
     return;
   }
   emp.is_admin = !emp.is_admin;
@@ -1228,7 +1230,7 @@ function pricingCardsHTML() {
         <div class="price-amount">$0<span>/mo</span></div>
         <div class="price-features">
           <span class="feat-row"><span class="feat-x">✕</span> Up to <b>3</b> employees</span>
-          <span class="feat-row"><span class="feat-x">✕</span> <b>2</b> admins</span>
+          <span class="feat-row"><span class="feat-x">✕</span> <b>1</b> admin</span>
           <span class="feat-row"><span class="feat-x">✕</span> <b>7-day</b> history</span>
           <span class="feat-row"><span class="feat-x">✕</span> No CSV export</span>
         </div>
