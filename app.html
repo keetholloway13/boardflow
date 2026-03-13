@@ -1242,7 +1242,8 @@ $('f-company').addEventListener('input', async ()=>{
 $('btn-enter').addEventListener('click', doLogin);
 $('btn-logout').addEventListener('click', ()=>{
   LS.set('bf_session',null); session={};
-  $('screen-app').classList.remove('active'); window.location.href = 'index.html';
+  $('screen-app').classList.remove('active');
+  $('screen-auth').classList.add('active');
   $('f-company').value=''; $('f-pin').value='';
 });
 $('btn-add-unassigned').addEventListener('click',  ()=>openAddTask(null));
