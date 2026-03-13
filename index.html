@@ -241,9 +241,6 @@ body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text
 .role-badge { font-size: 9px; font-family: 'DM Mono', monospace; padding: 1px 6px; border-radius: 6px; font-weight: 600; vertical-align: middle; margin-left: 4px; }
 .admin-badge { background: rgba(232,255,71,0.12); color: var(--accent); border: 1px solid rgba(232,255,71,0.25); }
 
-/* TRIAL BANNER */
-.trial-banner { background: rgba(255,159,71,0.1); border-bottom: 1px solid rgba(255,159,71,0.25); padding: 9px 18px; font-size: 12px; font-family: 'DM Mono', monospace; color: var(--orange); text-align: center; cursor: pointer; transition: background 0.15s; }
-.trial-banner:hover { background: rgba(255,159,71,0.18); }
 
 /* PAYWALL SCREEN */
 #screen-paywall { align-items: center; justify-content: center; padding: 24px; background: radial-gradient(ellipse 70% 50% at 50% -10%, #1c1a40 0%, var(--bg) 65%); }
@@ -313,7 +310,6 @@ body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text
     <button class="tab-btn" data-tab="history">📅 History</button>
     <button class="tab-btn hide admin-tab" data-tab="team">👥 Team</button>
   </div>
-  <div class="trial-banner hide" id="trial-banner"></div>
   <div class="content">
 
     <!-- BOARD -->
@@ -515,9 +511,6 @@ let companyPlan   = 'free';
 let companyMeta   = {};
 
 function planLimits()  { return PLAN_LIMITS[companyPlan] || PLAN_LIMITS.free; }
-function isTrialing()  { return companyMeta.subscription_status === 'trialing' && companyMeta.trial_ends_at && new Date(companyMeta.trial_ends_at) > new Date(); }
-function trialExpired(){ return companyMeta.subscription_status === 'trialing' && companyMeta.trial_ends_at && new Date(companyMeta.trial_ends_at) <= new Date(); }
-function trialDaysLeft(){ return Math.max(0, Math.ceil((new Date(companyMeta.trial_ends_at) - new Date()) / 86400000)); }
 function isPaid()      { return companyMeta.subscription_status === 'active'; }
 let addTaskEmpId  = null;
 let assigningId   = null;
@@ -636,12 +629,6 @@ async function enterApp() {
   companyMeta = await dbGetCompany(session.companyName) || {};
   companyPlan = companyMeta.plan || 'free';
 
-  // If trial has expired and not paid → show paywall instead
-  if (trialExpired() && !isPaid()) {
-    showPaywall();
-    return;
-  }
-
   $('screen-auth').classList.remove('active');
   $('screen-app').classList.add('active');
   $('nav-co').textContent   = session.companyName;
@@ -662,17 +649,6 @@ async function enterApp() {
     show('btn-change-emp-pin');
   }
   $('today-label').textContent = new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
-
-  // Trial banner
-  const trialBanner = $('trial-banner');
-  if (isTrialing()) {
-    const days = trialDaysLeft();
-    trialBanner.textContent = `⏳ Trial: ${days} day${days!==1?'s':''} left — upgrade to keep access`;
-    trialBanner.classList.remove('hide');
-    trialBanner.onclick = () => openUpgradeModal();
-  } else {
-    trialBanner.classList.add('hide');
-  }
 
   // Plan badge in topbar
   const planBadge = $('plan-badge');
@@ -1243,9 +1219,12 @@ function pricingCardsHTML() {
 }
 
 function showPaywall() {
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  $('screen-paywall').classList.add('active');
-  $('paywall-pricing').innerHTML = pricingCardsHTML();
+  // Free tier never expires — paywall only shown if subscription is past_due
+  if (companyMeta.subscription_status === 'past_due') {
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    $('screen-paywall').classList.add('active');
+    $('paywall-pricing').innerHTML = pricingCardsHTML();
+  }
 }
 
 function openUpgradeModal(reason) {
@@ -1317,7 +1296,6 @@ function scheduleMidnightClear() {
     await sb.from('companies').update({
       plan: upgradedPlan,
       subscription_status: 'active',
-      trial_ends_at: null,
     }).eq('id', upgradedCoId);
     window.history.replaceState({}, '', window.location.pathname);
     toast('Payment successful! Welcome to ' + upgradedPlan.charAt(0).toUpperCase() + upgradedPlan.slice(1) + '! 🎉');
