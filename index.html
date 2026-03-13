@@ -1063,8 +1063,7 @@ async function renderHistory() {
       done += d;
       rows += `<div class="day-emp"><div class="day-emp-name">${esc(empName)}</div><div class="day-emp-stat">${d}/${empTasks.length}</div></div>
         <div class="day-tasks">${empTasks.map(t=>{
-          const noteLines=t.note?t.note.split('
-').filter(Boolean):[];
+          const noteLines=t.note?t.note.split('\n').filter(Boolean):[];
           const notesHTML=noteLines.map(line=>{const sep=line.indexOf('||');const who=sep>-1?line.slice(0,sep):'';const txt=sep>-1?line.slice(sep+2):line;return`<div class="day-task-note">💬 ${esc(who)}: ${esc(txt)}</div>`;}).join('');
           return`<div class="day-task-item ${t.done?'done':''}">${t.done?'✓':'○'} ${esc(t.title)}</div>${notesHTML}`;
         }).join('')}</div>`;
