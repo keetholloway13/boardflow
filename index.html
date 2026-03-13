@@ -49,7 +49,7 @@ nav {
 .nav-links { display: flex; align-items: center; gap: 32px; }
 .nav-links a { color: var(--text2); text-decoration: none; font-size: 14px; font-weight: 500; transition: color 0.15s; }
 .nav-links a:hover { color: var(--text); }
-.nav-cta { background: var(--accent); color: #000; border: none; border-radius: 10px; padding: 9px 16px; font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 800; cursor: pointer; text-decoration: none; transition: opacity 0.15s, transform 0.1s; white-space: nowrap; }
+.nav-cta { background: var(--accent); color: #000; border: none; border-radius: 10px; padding: 9px 16px; font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 800; cursor: pointer; text-decoration: none; transition: opacity 0.15s, transform 0.1s; white-space: nowrap; flex-shrink: 0; }
 .nav-cta:hover { opacity: 0.88; }
 .nav-cta:active { transform: scale(0.97); }
 
@@ -282,6 +282,14 @@ footer {
   .mock-content { grid-template-columns: 1fr 1fr; }
   footer { padding: 24px 20px; flex-direction: column; text-align: center; }
 }
+@media (max-width: 768px) {
+  .nav-cta-long { display: none; }
+  .nav-cta-short { display: inline; }
+}
+@media (min-width: 769px) {
+  .nav-cta-long { display: inline; }
+  .nav-cta-short { display: none; }
+}
 @media (max-width: 380px) {
   .nav-cta { padding: 8px 12px; font-size: 12px; }
   .nav-logo { font-size: 15px; }
@@ -302,7 +310,7 @@ footer {
     <a href="#features">Features</a>
     <a href="#pricing">Pricing</a>
   </div>
-  <a href="app.html" class="nav-cta">Get Started Free →</a>
+  <a href="app.html" class="nav-cta"><span class="nav-cta-long">Get Started Free →</span><span class="nav-cta-short">Sign Up →</span></a>
 </nav>
 
 <!-- HERO -->
