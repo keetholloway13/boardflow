@@ -238,7 +238,7 @@ body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text
 .plan-business { background: rgba(180,127,255,0.15); color: var(--purple); border: 1px solid rgba(180,127,255,0.3); }
 
 /* UPGRADE BUTTON */
-.upgrade-btn { background: var(--accent); color: #000; border: none; border-radius: 8px; padding: 6px 14px; font-size: 12px; font-weight: 800; cursor: pointer; letter-spacing: 0.3px; transition: opacity 0.15s, transform 0.1s; white-space: nowrap; }
+.upgrade-btn { background: var(--accent); color: #000; border: none; border-radius: 8px; padding: 6px 12px; font-size: 11px; font-weight: 800; cursor: pointer; letter-spacing: 0.3px; transition: opacity 0.15s, transform 0.1s; white-space: nowrap; flex-shrink: 0; }
 .upgrade-btn:hover { opacity: 0.85; }
 .upgrade-btn:active { transform: scale(0.97); }
 
@@ -308,9 +308,9 @@ body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text
     <div class="topbar-left">
       <div class="topbar-logo">Board<span>Flow</span></div>
       <div class="co-badge" id="nav-co"></div>
-      <button class="upgrade-btn hide" id="upgrade-btn" onclick="openUpgradeModal()">⚡ Upgrade</button>
     </div>
     <div class="topbar-right">
+      <button class="upgrade-btn hide" id="upgrade-btn" onclick="openUpgradeModal()">⚡ Upgrade</button>
       <div class="pill"><div class="av" id="nav-av">?</div><span class="pill-name" id="nav-name"></span><span class="admin-chip hide" id="nav-admin">ADMIN</span></div>
       <div class="icon-btn hide" id="btn-change-emp-pin" title="Change your PIN">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5 7V5a3 3 0 016 0v2"/></svg>
